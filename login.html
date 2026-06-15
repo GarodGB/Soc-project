@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · ABSEGA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05040a;--bg2:#09080f;--bg3:#100e1a;--bg4:#161324;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);--border3:rgba(255,255,255,0.18);
+  --red:#e8284a;--purple:#8b2be2;--pink:#c026d3;
+  --text:#f5f0ff;--text2:#8b7fa8;--text3:#3d3558;
+  --sans:'Inter',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --brand-grad:linear-gradient(135deg,#e8284a 0%,#8b2be2 100%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex;align-items:center;justify-content:center;position:relative}
+#canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+.g1{position:fixed;top:-200px;left:-150px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(232,40,74,0.1) 0%,transparent 65%);pointer-events:none;z-index:0}
+.g2{position:fixed;bottom:-150px;right:-100px;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(139,43,226,0.1) 0%,transparent 65%);pointer-events:none;z-index:0}
+.back{position:fixed;top:24px;left:32px;z-index:100;display:flex;align-items:center;gap:10px;text-decoration:none;transition:opacity .2s}
+.back:hover{opacity:.7}
+.back img{width:30px;height:30px;border-radius:6px;object-fit:cover}
+.back-txt{font-size:13px;font-family:var(--mono);color:var(--text2)}
+.card{position:relative;z-index:10;width:440px;max-width:92vw;background:rgba(16,14,26,0.85);backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:20px;padding:48px 44px;box-shadow:0 40px 100px rgba(0,0,0,0.7)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;border-radius:20px 20px 0 0;background:linear-gradient(90deg,transparent,rgba(232,40,74,0.6),rgba(139,43,226,0.6),transparent)}
+.card::after{content:'';position:absolute;inset:0;border-radius:20px;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(232,40,74,0.04),transparent);pointer-events:none}
+.card-logo{text-align:center;margin-bottom:32px;position:relative;z-index:1}
+.logo-img-wrap{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;overflow:hidden;margin-bottom:14px;box-shadow:0 0 0 1px rgba(232,40,74,0.3),0 0 32px rgba(232,40,74,0.15)}
+.logo-img-wrap img{width:100%;height:100%;object-fit:cover}
+.card-title{font-size:24px;font-weight:800;color:#fff;letter-spacing:-.02em;margin-bottom:6px}
+.card-sub{font-size:14px;color:var(--text2)}
+.notice{position:relative;z-index:1;margin-bottom:24px;background:rgba(232,40,74,0.06);border:1px solid rgba(232,40,74,0.2);border-radius:10px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:var(--text2);line-height:1.6}
+.notice strong{color:var(--red)}
+.error{display:none;position:relative;z-index:1;margin-bottom:16px;background:rgba(232,40,74,0.08);border:1px solid rgba(232,40,74,0.3);border-radius:10px;padding:10px 14px;font-size:13px;font-family:var(--mono);color:var(--red)}
+.error.show{display:block}
+.field{position:relative;z-index:1;margin-bottom:16px}
+.field label{display:block;font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.field input{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border2);border-radius:10px;padding:13px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:all .2s}
+.field input:focus{border-color:rgba(232,40,74,0.5);box-shadow:0 0 0 3px rgba(232,40,74,0.08);background:rgba(0,0,0,0.4)}
+.field input::placeholder{color:var(--text3)}
+.row-between{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;position:relative;z-index:1}
+.check-row{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);cursor:pointer}
+.check-row input{accent-color:var(--red);width:14px;height:14px;cursor:pointer}
+.forgot-btn{font-size:13px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:var(--sans);padding:0;transition:color .2s}
+.forgot-btn:hover{color:var(--text2)}
+.btn-submit{position:relative;z-index:1;width:100%;padding:14px;border:none;border-radius:10px;background:var(--brand-grad);color:#fff;font-size:15px;font-weight:700;font-family:var(--sans);cursor:pointer;transition:all .2s;margin-bottom:20px;box-shadow:0 0 0 rgba(232,40,74,0)}
+.btn-submit:hover{box-shadow:0 0 28px rgba(232,40,74,0.4),0 0 60px rgba(139,43,226,0.2);transform:translateY(-1px)}
+.btn-submit:active{transform:translateY(0)}
+.btn-submit:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+.divider{display:flex;align-items:center;gap:12px;margin:4px 0 20px;position:relative;z-index:1}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider span{font-size:11px;font-family:var(--mono);color:var(--text3);letter-spacing:.06em}
+.foot-note{text-align:center;font-size:13px;color:var(--text2);position:relative;z-index:1}
+.foot-note a{background:var(--brand-grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;font-weight:600}
+
+/* ── FORGOT MODAL ── */
+.fmodal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;backdrop-filter:blur(6px);align-items:center;justify-content:center}
+.fmodal.open{display:flex}
+.fbox{background:#100e1a;border:1px solid rgba(232,40,74,0.2);border-radius:18px;padding:36px 32px;width:380px;max-width:92vw;position:relative;box-shadow:0 32px 80px rgba(0,0,0,0.7);animation:fIn .25s ease}
+@keyframes fIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fbox::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;border-radius:18px 18px 0 0;background:linear-gradient(90deg,transparent,rgba(232,40,74,0.5),rgba(139,43,226,0.5),transparent)}
+.f-title{font-size:20px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-.02em}
+.f-sub{font-size:13px;color:var(--text2);margin-bottom:22px}
+.f-label{display:block;font-size:11px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.f-input{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:all .2s;margin-bottom:16px}
+.f-input:focus{border-color:rgba(232,40,74,0.5);box-shadow:0 0 0 3px rgba(232,40,74,0.08)}
+.f-input::placeholder{color:var(--text3)}
+.f-err{display:none;background:rgba(232,40,74,0.08);border:1px solid rgba(232,40,74,0.3);border-radius:8px;padding:9px 12px;font-size:12px;font-family:var(--mono);color:#e8284a;margin-bottom:14px}
+.f-err.show{display:block}
+.f-btn-p{width:100%;padding:13px;border:none;border-radius:10px;background:var(--brand-grad);color:#fff;font-size:14px;font-weight:700;font-family:var(--sans);cursor:pointer;transition:all .2s;margin-bottom:10px}
+.f-btn-p:hover{box-shadow:0 0 24px rgba(232,40,74,0.4);transform:translateY(-1px)}
+.f-btn-g{width:100%;padding:11px;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text2);font-size:13px;font-family:var(--sans);cursor:pointer;transition:all .2s}
+.f-btn-g:hover{border-color:var(--border3);color:var(--text)}
+.f-success{display:none;text-align:center}
+.f-success-icon{width:52px;height:52px;border-radius:50%;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;color:#10b981}
+.f-success-title{font-size:20px;font-weight:800;color:#fff;margin-bottom:8px}
+.f-success-sub{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.7}
+.f-success-note{background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px 14px;font-size:12px;font-family:var(--mono);color:#10b981;margin-bottom:20px;text-align:left}
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div class="g1"></div>
+<div class="g2"></div>
+
+<a href="homepage.html" class="back">
+  <img src="absega-logo.png" alt="ABSEGA">
+  <span class="back-txt">← Back to ABSEGA / DET</span>
+</a>
+
+<div class="card">
+  <div class="card-logo">
+    <div class="logo-img-wrap"><img src="absega-logo.png" alt="ABSEGA Logo"></div>
+    <div class="card-title">Sign in</div>
+    <div class="card-sub">Access the ABSEGA Detection Platform</div>
+  </div>
+  <div class="notice">Default admin — <strong>admin@absega.local</strong> / <strong>Absega@123</strong></div>
+  <div class="error" id="error-msg"></div>
+  <form id="login-form" onsubmit="return handleLogin(event)">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@absega.local" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="row-between">
+      <label class="check-row"><input type="checkbox" id="remember"> Remember me</label>
+      <button type="button" class="forgot-btn" onclick="openForgot()">Forgot password?</button>
+    </div>
+    <button type="submit" class="btn-submit" id="submit-btn">Sign in →</button>
+  </form>
+  <div class="divider"><span>INTERNAL USE ONLY</span></div>
+  <p class="foot-note">Don't have access? <a href="#">Contact your admin</a></p>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div class="fmodal" id="fmodal" onclick="if(event.target===this)closeForgot()">
+  <div class="fbox">
+
+    <div id="f-step1">
+      <div class="f-title">Reset password</div>
+      <div class="f-sub">Enter your email and we'll send a reset link.</div>
+      <div class="f-err" id="f-err"></div>
+      <label class="f-label" for="f-email">Email</label>
+      <input type="email" class="f-input" id="f-email" placeholder="admin@absega.local">
+      <button class="f-btn-p" onclick="submitForgot()">Send reset link</button>
+      <button class="f-btn-g" onclick="closeForgot()">Cancel</button>
+    </div>
+
+    <div class="f-success" id="f-step2">
+      <div class="f-success-icon">✓</div>
+      <div class="f-success-title">Check your email</div>
+      <div class="f-success-sub">A reset link was sent to <strong id="f-sent-email" style="color:#fff"></strong>.</div>
+      <div class="f-success-note">This is an internal platform. Contact <strong>admin@absega.local</strong> directly if you need a password reset.</div>
+      <button class="f-btn-p" onclick="closeForgot()">Back to sign in</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+// ── REDIRECT IF ALREADY LOGGED IN ──
+if(sessionStorage.getItem('absega_token')){
+  window.location.href = 'frontend.html';
+}
+
+// ── REMEMBER ME: pre-fill saved credentials ──
+window.addEventListener('DOMContentLoaded', function(){
+  var em = localStorage.getItem('absega_rem_email');
+  var pw = localStorage.getItem('absega_rem_pass');
+  if(em){ document.getElementById('email').value = em; document.getElementById('remember').checked = true; }
+  if(pw){ document.getElementById('password').value = pw; }
+});
+
+// ── PARTICLE CANVAS ──
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var W, H, pts = [];
+function resize(){ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+var COLS = ['232,40,74','139,43,226','192,38,211'];
+function Dot(){
+  this.x=Math.random()*W; this.y=Math.random()*H;
+  this.vx=(Math.random()-.5)*.3; this.vy=(Math.random()-.5)*.3;
+  this.r=Math.random()*1.2+.4; this.a=Math.random()*.3+.05;
+  this.c=COLS[Math.floor(Math.random()*COLS.length)];
+}
+Dot.prototype.update=function(){
+  this.x+=this.vx; this.y+=this.vy;
+  this.vx*=.999; this.vy*=.999;
+  if(this.x<0||this.x>W)this.vx*=-1;
+  if(this.y<0||this.y>H)this.vy*=-1;
+};
+Dot.prototype.draw=function(){
+  ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2);
+  ctx.fillStyle='rgba('+this.c+','+this.a+')'; ctx.fill();
+};
+for(var i=0;i<80;i++) pts.push(new Dot());
+function loop(){
+  ctx.clearRect(0,0,W,H);
+  for(var i=0;i<pts.length;i++){
+    pts[i].update(); pts[i].draw();
+    for(var j=i+1;j<pts.length;j++){
+      var dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.sqrt(dx*dx+dy*dy);
+      if(d<100){
+        ctx.beginPath(); ctx.moveTo(pts[i].x,pts[i].y); ctx.lineTo(pts[j].x,pts[j].y);
+        ctx.strokeStyle='rgba(232,40,74,'+(1-d/100)*.1+')'; ctx.lineWidth=.5; ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+
+// ── LOGIN ──
+function handleLogin(e){
+  e.preventDefault();
+  var email    = document.getElementById('email').value.trim();
+  var password = document.getElementById('password').value.trim();
+  var remember = document.getElementById('remember').checked;
+  var errorEl  = document.getElementById('error-msg');
+  var btn      = document.getElementById('submit-btn');
+  errorEl.classList.remove('show'); errorEl.textContent = '';
+  if(!email||!password){
+    errorEl.textContent='Please enter both email and password.';
+    errorEl.classList.add('show'); return false;
+  }
+  btn.disabled=true; btn.textContent='Signing in…';
+  fetch(API+'/api/auth/login',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:email,password:password})
+  })
+  .then(function(res){ return res.json().then(function(d){return{ok:res.ok,d:d};}); })
+  .then(function(r){
+    if(!r.ok){
+      errorEl.textContent=r.d.detail||'Invalid email or password.';
+      errorEl.classList.add('show'); btn.disabled=false; btn.textContent='Sign in →'; return;
+    }
+    // Save or clear Remember me
+    if(remember){
+      localStorage.setItem('absega_rem_email', email);
+      localStorage.setItem('absega_rem_pass',  password);
+    } else {
+      localStorage.removeItem('absega_rem_email');
+      localStorage.removeItem('absega_rem_pass');
+    }
+    sessionStorage.setItem('absega_token', r.d.access_token||'session');
+    sessionStorage.setItem('absega_user',  r.d.user||email);
+    sessionStorage.setItem('absega_role',  r.d.role||'analyst');
+    sessionStorage.setItem('absega_name',  r.d.full_name||email);
+    window.location.href='frontend.html';
+  })
+  .catch(function(){
+    errorEl.textContent='Cannot reach server. Make sure the backend is running.';
+    errorEl.classList.add('show'); btn.disabled=false; btn.textContent='Sign in →';
+  });
+  return false;
+}
+
+// ── FORGOT PASSWORD ──
+function openForgot(){
+  document.getElementById('f-step1').style.display='block';
+  document.getElementById('f-step2').style.display='none';
+  document.getElementById('f-err').textContent='';
+  document.getElementById('f-err').classList.remove('show');
+  var typed=document.getElementById('email').value;
+  if(typed) document.getElementById('f-email').value=typed;
+  document.getElementById('fmodal').classList.add('open');
+  setTimeout(function(){ document.getElementById('f-email').focus(); },150);
+}
+function closeForgot(){
+  document.getElementById('fmodal').classList.remove('open');
+}
+function submitForgot(){
+  var email=document.getElementById('f-email').value.trim();
+  var errEl=document.getElementById('f-err');
+  errEl.classList.remove('show');
+  if(!email){ errEl.textContent='Please enter your email address.'; errEl.classList.add('show'); return; }
+  if(!email.includes('@')||!email.includes('.')){ errEl.textContent='Please enter a valid email address.'; errEl.classList.add('show'); return; }
+  document.getElementById('f-sent-email').textContent=email;
+  document.getElementById('f-step1').style.display='none';
+  document.getElementById('f-step2').style.display='block';
+}
+document.getElementById('f-email').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){ e.preventDefault(); submitForgot(); }
+});
+</script>
+</body>
+</html>
