@@ -48,6 +48,10 @@ def serve_login():
 def serve_frontend():
     return FileResponse(os.path.join(FRONTEND_DIR, "frontend.html"))
 
+@app.get("/absega-logo.png")
+def serve_logo():
+    return FileResponse(os.path.join(FRONTEND_DIR, "absega-logo.png"))
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
