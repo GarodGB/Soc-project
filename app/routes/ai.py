@@ -3,27 +3,169 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from app.database import get_connection
-import anthropic
+try:
+    import anthropic
+except Exception:
+    anthropic = None
 import json
 import os
+import re
+import hashlib
 
 router = APIRouter()
 
 
-# ── Anthropic client ──────────────────────────────────────────────────────────
+# ── Anthropic client / Local Demo Mode ────────────────────────────────────────
+# If ANTHROPIC_API_KEY is not configured, the platform uses a local mock client.
+# This lets every teammate run the project without sharing a private API key.
+
+class _MockTextBlock:
+    def __init__(self, text: str):
+        self.text = text
+
+class _MockUsage:
+    input_tokens = 0
+    output_tokens = 0
+
+class _MockResponse:
+    def __init__(self, text: str):
+        self.content = [_MockTextBlock(text)]
+        self.usage = _MockUsage()
+
+class _MockMessages:
+    def create(self, **kwargs):
+        messages = kwargs.get("messages", [])
+        prompt = "\n".join([m.get("content", "") for m in messages if isinstance(m, dict)])
+        system = kwargs.get("system", "")
+        return _MockResponse(_mock_ai_answer(prompt, system))
+
+class _MockAnthropicClient:
+    def __init__(self):
+        self.messages = _MockMessages()
+
+def _extract_first_technique(text: str) -> str:
+    match = re.search(r"T\d{4}(?:\.\d{3})?", text)
+    return match.group(0) if match else "T1059"
+
+def _mock_ai_answer(prompt: str, system: str = "") -> str:
+    """Local demo answers used when no Anthropic API key is available."""
+    lower = (prompt + "\n" + system).lower()
+    technique = _extract_first_technique(prompt)
+
+    # Endpoints that expect strict JSON
+    if '"sigma_rule"' in prompt and '"log_sources_needed"' in prompt:
+        return json.dumps({
+            "sigma_rule": f"title: Demo Detection for {technique}\nstatus: test\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection:\n    CommandLine|contains:\n      - powershell\n      - cmd.exe\n  condition: selection\nlevel: medium",
+            "explanation": "Demo Mode: this is a local Sigma-style suggestion because ANTHROPIC_API_KEY is not configured.",
+            "log_sources_needed": ["Windows Event Logs", "Sysmon Process Creation"],
+            "false_positive_rate": "medium",
+            "tuning_tips": "Tune by allowlisting known admin scripts and approved management tools."
+        })
+
+    if '"primary_technique_id"' in prompt:
+        return json.dumps({
+            "primary_technique_id": technique,
+            "primary_technique_name": "Demo ATT&CK mapping",
+            "primary_tactic": "Execution",
+            "confidence": "medium",
+            "secondary_techniques": [],
+            "reasoning": "Demo Mode mapping based on the technique ID or keywords already present in the detection.",
+            "tags_suggestion": technique
+        })
+
+    if '"coverage_score"' in prompt and '"critical_gaps"' in prompt:
+        score_match = re.search(r"Coverage score\s*:\s*([0-9.]+)%", prompt)
+        score = float(score_match.group(1)) if score_match else 0
+        return json.dumps({
+            "coverage_score": score,
+            "overall_assessment": "Demo Mode: AI is not connected, but the platform can still calculate coverage from the local database. Focus first on techniques with no rules and techniques that only have draft/testing rules.",
+            "critical_gaps": [
+                {"technique_id": "T1110", "technique_name": "Brute Force", "tactic": "Credential Access", "risk_level": "high", "why_important": "Credential attacks are common and need strong telemetry coverage.", "quick_win": True},
+                {"technique_id": "T1021", "technique_name": "Remote Services", "tactic": "Lateral Movement", "risk_level": "high", "why_important": "Attackers use remote services to move between systems.", "quick_win": True}
+            ],
+            "priority_order": ["T1110", "T1021"],
+            "recommended_next_detections": [
+                {"technique_id": "T1110", "technique_name": "Brute Force", "suggested_rule_title": "Multiple Failed Logons Followed by Success", "effort": "low", "impact": "high"},
+                {"technique_id": "T1021", "technique_name": "Remote Services", "suggested_rule_title": "Suspicious Remote Service Execution", "effort": "medium", "impact": "high"}
+            ],
+            "tactical_advice": "Use this demo output for presentation only. For real AI recommendations, configure ANTHROPIC_API_KEY locally in a .env file or environment variable."
+        })
+
+    if '"validation_summary"' in prompt and '"test_cases"' in prompt:
+        return json.dumps({
+            "validation_summary": "Demo Mode: generated local validation cases without calling Claude.",
+            "estimated_fp_rate": "medium",
+            "rule_quality_score": 75,
+            "deployment_readiness": "needs_tuning",
+            "test_cases": [
+                {"attack_name": "True Positive — suspicious command execution", "sample_type": "positive", "sample_event": 'EventID=4688 Image=powershell.exe CommandLine="powershell -nop -enc AAAA"', "expected_result": "match", "notes": "Should trigger on suspicious command-line keywords."},
+                {"attack_name": "True Negative — normal admin command", "sample_type": "negative", "sample_event": 'EventID=4688 Image=cmd.exe CommandLine="cmd.exe /c whoami"', "expected_result": "no_match", "notes": "Benign command with no suspicious indicators."},
+                {"attack_name": "False Positive — admin script", "sample_type": "positive", "sample_event": 'EventID=4688 Image=powershell.exe CommandLine="powershell -File backup.ps1"', "expected_result": "match", "notes": "May need allowlisting for approved scripts."}
+            ],
+            "improvement_suggestions": ["Add more precise process and parent-process conditions", "Document known false positives"],
+            "missing_conditions": "Add environment-specific allowlists and telemetry requirements."
+        })
+
+    if '"deployment_steps"' in prompt and '"testing_procedure"' in prompt:
+        return json.dumps({
+            "title": "Demo Deployment Guide",
+            "executive_summary": "Demo Mode: local deployment guidance generated without an external API.",
+            "prerequisites": {"log_sources": ["Sysmon", "Windows Security Events"], "audit_policy": ["Process Creation"], "siem_requirements": ["Sigma-compatible rule pipeline"]},
+            "deployment_steps": [
+                {"step": 1, "title": "Review rule logic", "description": "Validate fields and event IDs against available telemetry.", "command": ""},
+                {"step": 2, "title": "Deploy in test mode", "description": "Run against sample logs before production.", "command": ""}
+            ],
+            "tuning_guide": {"initial_threshold": "Start low, then tune after observing alert volume.", "allowlist_candidates": ["admin scripts", "backup tools"], "environment_specific": "Adjust fields to match your SIEM schema."},
+            "false_positive_handling": {"known_fps": ["legitimate admin activity"], "triage_steps": ["check user", "check host", "review parent process"], "escalation_criteria": "Escalate if activity is unauthorized or repeated."},
+            "testing_procedure": {"pre_deployment_test": "Run validation cases", "validation_command": "Use Test Runner", "expected_alert": "One alert for the positive sample"},
+            "maintenance": {"review_frequency": "monthly", "update_triggers": ["new false positives", "new ATT&CK procedure"], "metrics_to_track": ["TP rate", "FP rate", "alert volume"]},
+            "references": ["MITRE ATT&CK", "Sigma HQ"]
+        })
+
+    if 'return only valid json' in lower and '"results"' in prompt:
+        return json.dumps({"results": [], "summary": "Demo Mode: local AI search is enabled, but semantic ranking requires a real API key."})
+
+    # Free-text endpoints
+    if "coverage gap" in lower or "coverage gaps" in lower:
+        return "Demo Mode: ANTHROPIC_API_KEY is not configured, so this is a local answer. Check the Coverage tab for exact gaps. Prioritize red ATT&CK techniques with no rules, then yellow techniques that only have draft/testing rules. Also verify telemetry sources are healthy before marking a technique as covered."
+
+    if "explain this sigma" in lower:
+        return "Demo Mode explanation: this rule should be reviewed by checking what behavior it detects, which log source it needs, and what false positives may appear in normal admin activity."
+
+    if "analyze this raw log" in lower:
+        return "**Verdict:** SUSPICIOUS\n**Attack identified:** Demo analysis only.\n**MITRE technique:** Review manually based on process, command line, user, and source host.\n**Recommended action:** Correlate with endpoint and authentication logs."
+
+    if "analyze this ioc" in lower:
+        return "**Threat Level:** Unknown\n**Classification:** Demo Mode — no external threat intel lookup.\n**Recommended actions:** Monitor, search internally, and enrich with a real TI source before blocking."
+
+    if "attack chain" in lower:
+        return "**INCIDENT SUMMARY:** Demo Mode attack-chain reconstruction. Review timestamps, user accounts, source hosts, and MITRE techniques manually.\n**RECOMMENDED RESPONSE:** contain suspicious hosts and validate credentials."
+
+    if "score this sigma" in lower:
+        return "**Overall Score:** 75/100\n**Verdict:** Needs Improvement\n**Top improvements:** add precise fields, document false positives, and validate with positive/negative samples."
+
+    if "threat hunting plan" in lower:
+        return "**HUNT HYPOTHESIS:** Demo Mode hunt plan.\n**WHAT TO LOOK FOR:** unusual authentication, suspicious processes, lateral movement, and abnormal network connections.\n**DATA SOURCES NEEDED:** EDR, Windows Event Logs, Sysmon, firewall/DNS logs."
+
+    if "executive threat briefing" in lower:
+        return "**CRITICAL FINDINGS:** Demo Mode briefing. Coverage should be reviewed in the Coverage tab.\n**PRIORITY RECOMMENDATIONS:** close high-risk ATT&CK gaps, fix unhealthy telemetry, and validate active rules with sample events."
+
+    return "Demo Mode: ABSEGA AI is running locally because ANTHROPIC_API_KEY is not configured. The platform still works; live Claude answers require a private API key."
 
 def get_client():
     key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
-        raise HTTPException(
-            status_code=503,
-            detail="ANTHROPIC_API_KEY not set. Set it with: export ANTHROPIC_API_KEY=sk-ant-..."
-        )
+    provider = os.environ.get("AI_PROVIDER", "mock" if not key else "anthropic").lower()
+
+    if provider in ("mock", "demo", "local") or not key:
+        return _MockAnthropicClient()
+
+    if anthropic is None:
+        raise HTTPException(status_code=503, detail="anthropic package is not installed. Run: pip install -r requirements.txt")
+
     return anthropic.Anthropic(api_key=key)
 
-
 def ask_claude(prompt: str, system: str = None, max_tokens: int = 1500) -> str:
-    client = get_client()  # raises 503 directly if no key
+    client = get_client()
     kwargs = {
         "model":      "claude-sonnet-4-6",
         "max_tokens": max_tokens,
@@ -589,9 +731,6 @@ Return ONLY a JSON object, no extra text:
 #  JASON'S AI FEATURES — Chat, Masking, Analysis, Hunting
 # ═══════════════════════════════════════════════════════════════════════════════
 
-import re
-import hashlib
-
 # ── System prompt for chat ────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """You are the AI assistant for ABSEGA's Detection Engineering & Validation Platform.
@@ -1049,8 +1188,9 @@ def ai_health():
     return {
         "ai_configured": bool(api_key),
         "api_key_set": bool(api_key),
+        "mode": "live" if api_key else "demo_mock",
         "api_key_preview": f"{api_key[:12]}...{api_key[-4:]}" if api_key else None,
-        "model": "claude-haiku-4-5-20251001",
+        "model": "claude-haiku-4-5-20251001" if api_key else "local-demo-mock",
         "features": ["chat", "mask", "unmask", "explain", "analyze-log", "ioc", "search",
                       "attack-chain", "quality-score", "threat-hunt", "briefing",
                       "suggest-rule", "auto-map", "gap-analysis", "validate", "deployment-docs"],
