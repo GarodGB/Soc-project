@@ -582,3 +582,477 @@ Return ONLY a JSON object, no extra text:
     data["detection_id"] = detection_id
     data["generated_at"] = datetime.utcnow().isoformat()
     return data
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  JASON'S AI FEATURES — Chat, Masking, Analysis, Hunting
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import re
+import hashlib
+
+# ── System prompt for chat ────────────────────────────────────────────────────
+
+SYSTEM_PROMPT = """You are the AI assistant for ABSEGA's Detection Engineering & Validation Platform.
+
+You help security analysts with:
+- Understanding Sigma detection rules and their logic
+- Explaining MITRE ATT&CK techniques and tactics
+- Analyzing detection coverage gaps
+- Explaining log sources (auditd, Sysmon, sshd, Windows Event Logs, etc.)
+- Writing and improving Sigma rules
+- Understanding validation test results (TP, FP, TN, FN)
+- Data masking and de-masking of sensitive log fields
+
+Platform context:
+- The platform stores Sigma detection rules mapped to MITRE ATT&CK techniques
+- It tracks telemetry sources (log sources) and their health status
+- It validates detections using sample log events
+- Detection categories: Windows, Linux, Identity/Cloud
+- There are 6 database tables: mitre_techniques, telemetry_sources, detections,
+  detection_technique_mapping, detection_telemetry, validation_cases
+
+Keep responses concise and actionable. Use technical accuracy.
+When discussing detections, reference specific technique IDs (e.g. T1110.001).
+Format code blocks with proper syntax highlighting."""
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 6 — AI CHATBOT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ChatRequest(BaseModel):
+    message: str
+    context: Optional[str] = None
+
+class ChatResponse(BaseModel):
+    reply: str
+    tokens_used: int
+
+def _get_platform_context() -> str:
+    conn = get_connection()
+    try:
+        total_det = conn.execute("SELECT COUNT(*) FROM detections").fetchone()[0]
+        total_tech = conn.execute("SELECT COUNT(*) FROM mitre_techniques").fetchone()[0]
+        total_telem = conn.execute("SELECT COUNT(*) FROM telemetry_sources").fetchone()[0]
+        covered = conn.execute("SELECT COUNT(DISTINCT technique_id) FROM detection_technique_mapping").fetchone()[0]
+        sev = {r[0]: r[1] for r in conn.execute("SELECT severity, COUNT(*) FROM detections GROUP BY severity").fetchall()}
+        plat = {r[0]: r[1] for r in conn.execute("SELECT platform, COUNT(*) FROM detections GROUP BY platform").fetchall()}
+        coverage_pct = round((covered / total_tech * 100), 1) if total_tech else 0
+        return f"\nCurrent platform stats:\n- {total_det} detection rules ({json.dumps(sev)})\n- {total_tech} MITRE techniques in database\n- {covered} techniques covered ({coverage_pct}% coverage)\n- {total_telem} telemetry sources\n- Platform breakdown: {json.dumps(plat)}\n"
+    except Exception:
+        return "Platform stats unavailable."
+    finally:
+        conn.close()
+
+@router.post("/chat")
+def ai_chat(req: ChatRequest):
+    client = get_client()
+    platform_stats = _get_platform_context()
+    messages_content = req.message
+    if req.context:
+        messages_content = f"[User is viewing: {req.context}]\n\n{req.message}"
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=1024,
+            system=SYSTEM_PROMPT + "\n" + platform_stats,
+            messages=[{"role": "user", "content": messages_content}]
+        )
+        reply = response.content[0].text
+        tokens = response.usage.input_tokens + response.usage.output_tokens
+        return ChatResponse(reply=reply, tokens_used=tokens)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Claude API error: {str(e)}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 7 — DATA MASKING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_mask_store: dict[str, dict] = {}
+
+class MaskRequest(BaseModel):
+    log_text: str
+    mask_fields: Optional[list[str]] = None
+
+class MaskResponse(BaseModel):
+    masked_text: str
+    masked_count: int
+    masked_fields: list[dict]
+    mask_id: str
+
+SENSITIVE_PATTERNS = {
+    "ip_address": r'\b(?:10|172|192|185|203|45|91|78)\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+    "email": r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+    "xml_user": r'<Data Name="(?:User|TargetUserName|SubjectUserName)">(.*?)</Data>',
+    "xml_computer": r'<Computer>(.*?)</Computer>',
+    "xml_ip": r'<Data Name="(?:IpAddress|SourceIp|DestinationIp)">(.*?)</Data>',
+    "xml_hostname": r'<Data Name="(?:WorkstationName|DestinationHostname)">(.*?)</Data>',
+    "xml_domain": r'<Data Name="(?:TargetDomainName|SubjectDomainName)">(.*?)</Data>',
+    "username": r'(?:User(?:Name)?|TargetUserName|SubjectUserName)[=:]\s*["\']?([A-Za-z0-9._\\-]+)["\']?',
+    "hostname": r'(?:Computer|Hostname|WorkstationName|hostname)[=:]\s*["\']?([A-Za-z0-9._-]+)["\']?',
+    "domain": r'(?:Domain(?:Name)?|TargetDomainName|SubjectDomainName)[=:]\s*["\']?([A-Za-z0-9._-]+)["\']?',
+    "json_user": r'"(?:email|username|userPrincipalName|actor_user_name)":\s*"(.*?)"',
+    "json_ip": r'"(?:ipAddress|ipaddr|IpAddress)":\s*"(.*?)"',
+    "json_host": r'"(?:city|country|countryOrRegion)":\s*"(.*?)"',
+    "path": r'C:\\Users\\([A-Za-z0-9._-]+)',
+    "linux_user": r'for (?:invalid user )?(\w+) from',
+    "linux_ip": r'from (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})',
+    "sid": r'S-1-5-21-\d+-\d+-\d+-\d+',
+}
+
+def _generate_mask(value: str, field_type: str) -> str:
+    hash_val = hashlib.md5(value.encode()).hexdigest()[:8]
+    prefixes = {
+        "ip_address": "10.XXX.XXX", "email": "MASKED_USER",
+        "username": "USER", "xml_user": "USER", "json_user": "USER", "linux_user": "USER",
+        "hostname": "HOST", "xml_hostname": "HOST", "json_host": "LOCATION",
+        "xml_computer": "HOST", "xml_ip": "10.XXX.XXX", "json_ip": "10.XXX.XXX", "linux_ip": "10.XXX.XXX",
+        "domain": "DOMAIN", "xml_domain": "DOMAIN",
+        "path": "MASKED_USER", "sid": "S-1-5-21-XXXXXXXXX",
+    }
+    prefix = prefixes.get(field_type, "MASKED")
+    return f"{prefix}_{hash_val}"
+
+@router.post("/mask")
+def mask_log_data(req: MaskRequest):
+    log_text = req.log_text
+    masked_fields = []
+    mask_mapping = {}
+    for field_type, pattern in SENSITIVE_PATTERNS.items():
+        if req.mask_fields and field_type not in req.mask_fields:
+            continue
+        matches = re.finditer(pattern, log_text)
+        for match in matches:
+            original = match.group(0)
+            if match.lastindex and match.lastindex >= 1:
+                original_value = match.group(1)
+                masked_value = _generate_mask(original_value, field_type)
+                log_text = log_text.replace(original_value, masked_value)
+                mask_mapping[masked_value] = original_value
+                masked_fields.append({"type": field_type, "masked_as": masked_value})
+            else:
+                masked_value = _generate_mask(original, field_type)
+                log_text = log_text.replace(original, masked_value)
+                mask_mapping[masked_value] = original
+                masked_fields.append({"type": field_type, "masked_as": masked_value})
+    mask_id = hashlib.sha256(f"{req.log_text}{datetime.utcnow().isoformat()}".encode()).hexdigest()[:16]
+    _mask_store[mask_id] = {"mapping": mask_mapping, "created_at": datetime.utcnow().isoformat(), "original_text": req.log_text}
+    return MaskResponse(masked_text=log_text, masked_count=len(masked_fields), masked_fields=masked_fields, mask_id=mask_id)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 8 — DE-MASKING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class UnmaskRequest(BaseModel):
+    mask_id: str
+    masked_text: str
+    role: str
+
+class UnmaskResponse(BaseModel):
+    original_text: str
+    unmasked_count: int
+    authorized: bool
+
+@router.post("/unmask")
+def unmask_log_data(req: UnmaskRequest):
+    allowed_roles = {"Admin", "Engineer"}
+    if req.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail=f"De-masking requires Admin or Engineer role. Your role: {req.role}")
+    mask_data = _mask_store.get(req.mask_id)
+    if not mask_data:
+        raise HTTPException(status_code=404, detail="Mask ID not found.")
+    unmasked_text = req.masked_text
+    mapping = mask_data["mapping"]
+    unmasked_count = 0
+    for masked_value, original_value in mapping.items():
+        if masked_value in unmasked_text:
+            unmasked_text = unmasked_text.replace(masked_value, original_value)
+            unmasked_count += 1
+    return UnmaskResponse(original_text=unmasked_text, unmasked_count=unmasked_count, authorized=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 9 — RULE EXPLAINER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ExplainRequest(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    sigma_rule: Optional[str] = ""
+    tags: Optional[str] = ""
+    severity: Optional[str] = ""
+
+@router.post("/explain")
+def explain_rule(req: ExplainRequest):
+    client = get_client()
+    prompt = f"""Explain this Sigma detection rule in plain English for a SOC analyst.
+Title: {req.title}
+Description: {req.description}
+MITRE Tags: {req.tags}
+Severity: {req.severity}
+Sigma Rule:
+{req.sigma_rule}
+
+Structure your response as:
+**What it detects:** (1-2 sentences)
+**Attack scenario:** (what an attacker is doing step by step)
+**Why it matters:** (risk level and impact)
+**Log source needed:** (what logs must be collected)
+**False positive tips:** (when this might fire incorrectly)"""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=512,
+            system="You are a senior SOC analyst explaining detection rules. Be concise and practical.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"explanation": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 10 — LOG ANALYZER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class LogAnalyzeRequest(BaseModel):
+    log_text: str
+
+@router.post("/analyze-log")
+def analyze_log(req: LogAnalyzeRequest):
+    client = get_client()
+    conn = get_connection()
+    try:
+        det_count = conn.execute("SELECT COUNT(*) FROM detections").fetchone()[0]
+    finally:
+        conn.close()
+    prompt = f"""Analyze this raw log entry and provide:
+**Verdict:** MALICIOUS / SUSPICIOUS / BENIGN
+**Attack identified:** (what is happening)
+**MITRE technique:** (technique ID and name)
+**Tactic:** (e.g. Execution, Credential Access)
+**Severity:** Critical / High / Medium / Low
+**Recommended action:** (what the analyst should do next)
+**Sigma rule suggestion:** (a brief Sigma detection logic)
+The platform currently has {det_count} detection rules.
+Raw log:
+{req.log_text}"""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=512,
+            system="You are a SOC analyst specialized in log analysis. Be concise and actionable.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"analysis": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 11 — IOC ENRICHMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class IOCRequest(BaseModel):
+    ioc: str
+    ioc_type: Optional[str] = None
+
+@router.post("/ioc")
+def enrich_ioc(req: IOCRequest):
+    client = get_client()
+    ioc = req.ioc.strip()
+    if req.ioc_type:
+        ioc_type = req.ioc_type
+    elif re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', ioc):
+        ioc_type = "IP Address"
+    elif re.match(r'^[a-fA-F0-9]{32}$', ioc):
+        ioc_type = "MD5 Hash"
+    elif re.match(r'^[a-fA-F0-9]{64}$', ioc):
+        ioc_type = "SHA256 Hash"
+    elif re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', ioc):
+        ioc_type = "Domain"
+    else:
+        ioc_type = "Unknown"
+    prompt = f"""Analyze this IOC:
+IOC: {ioc}
+Type: {ioc_type}
+Provide:
+**Threat Level:** Critical / High / Medium / Low / Unknown
+**Classification:** (Known C2, Tor Exit Node, Malware Hash, Clean)
+**Associated threats:** (known APT groups, malware families)
+**MITRE techniques:** (commonly associated techniques)
+**Recommended actions:** (block, monitor, investigate, ignore)
+**Detection rules needed:** (what Sigma rules should cover this)"""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=512,
+            system="You are a threat intelligence analyst. Provide actionable IOC analysis.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"ioc": ioc, "ioc_type": ioc_type, "analysis": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 12 — NATURAL LANGUAGE SEARCH
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class NLSearchRequest(BaseModel):
+    query: str
+
+@router.post("/search")
+def natural_language_search(req: NLSearchRequest):
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT detection_id, title, description, severity, status FROM detections LIMIT 50").fetchall()
+        det_list = [{"id": r[0], "title": r[1], "description": r[2], "severity": r[3], "status": r[4]} for r in rows]
+    finally:
+        conn.close()
+    client = get_client()
+    prompt = f"""Search for detection rules matching this query: "{req.query}"
+Detections: {json.dumps(det_list, indent=1)}
+Return ONLY valid JSON: {{"results": [{{"id": 1, "title": "...", "reason": "..."}}], "summary": "Found X matching rules..."}}"""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1024,
+            system="You are a detection search engine. Return only valid JSON.",
+            messages=[{"role": "user", "content": prompt}])
+        result_text = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+        try:
+            start = result_text.find('{')
+            end = result_text.rfind('}') + 1
+            if start >= 0 and end > start:
+                parsed = json.loads(result_text[start:end])
+            else:
+                parsed = {"results": [], "summary": result_text}
+        except json.JSONDecodeError:
+            parsed = {"results": [], "summary": result_text}
+        return {"results": parsed.get("results", []), "summary": parsed.get("summary", ""), "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 13 — ATTACK CHAIN RECONSTRUCTION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AttackChainRequest(BaseModel):
+    logs: str
+
+@router.post("/attack-chain")
+def reconstruct_attack_chain(req: AttackChainRequest):
+    client = get_client()
+    prompt = f"""Analyze these logs and build a complete attack chain timeline:
+{req.logs}
+Respond with:
+**INCIDENT SUMMARY** (1-2 sentences)
+**ATTACK TIMELINE** [TIMESTAMP] → [ACTION] → [MITRE TECHNIQUE]
+**KILL CHAIN PHASE MAPPING**
+**SEVERITY ASSESSMENT**
+**RECOMMENDED RESPONSE**
+**INDICATORS OF COMPROMISE**"""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1024,
+            system="You are a senior incident responder. Provide clear, actionable analysis.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"chain": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 14 — DETECTION QUALITY SCORER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/quality-score")
+def score_detection_quality(req: ExplainRequest):
+    client = get_client()
+    prompt = f"""Score this Sigma detection rule (0-100):
+Title: {req.title}
+Description: {req.description}
+Tags: {req.tags}
+Severity: {req.severity}
+Rule: {req.sigma_rule}
+Score on: Logic Accuracy (X/20), Coverage Breadth (X/20), False Positive Management (X/20), MITRE Alignment (X/20), Operational Readiness (X/20).
+Give TOP 3 IMPROVEMENTS and VERDICT: Production Ready / Needs Improvement / Not Ready."""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=700,
+            system="You are a senior detection engineer. Be strict but fair.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"score": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 15 — THREAT HUNTING ASSISTANT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class HuntRequest(BaseModel):
+    hypothesis: str
+
+@router.post("/threat-hunt")
+def generate_hunt_plan(req: HuntRequest):
+    client = get_client()
+    conn = get_connection()
+    try:
+        det_count = conn.execute("SELECT COUNT(*) FROM detections").fetchone()[0]
+        covered = conn.execute("SELECT COUNT(DISTINCT technique_id) FROM detection_technique_mapping").fetchone()[0]
+    finally:
+        conn.close()
+    prompt = f"""Generate a threat hunting plan.
+Hypothesis: "{req.hypothesis}"
+Platform has {det_count} detections covering {covered} MITRE techniques.
+Provide: HUNT HYPOTHESIS, WHAT TO LOOK FOR, DATA SOURCES NEEDED, HUNT QUERIES (Sigma YAML), MITRE TECHNIQUES, RECOMMENDED DURATION, SUCCESS CRITERIA."""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1024,
+            system="You are an elite threat hunter. Provide actionable hunt plans.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"plan": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 16 — EXECUTIVE THREAT BRIEFING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/briefing")
+def executive_briefing():
+    client = get_client()
+    conn = get_connection()
+    try:
+        total_det = conn.execute("SELECT COUNT(*) FROM detections").fetchone()[0]
+        total_tech = conn.execute("SELECT COUNT(*) FROM mitre_techniques").fetchone()[0]
+        covered = conn.execute("SELECT COUNT(DISTINCT technique_id) FROM detection_technique_mapping").fetchone()[0]
+        total_telem = conn.execute("SELECT COUNT(*) FROM telemetry_sources").fetchone()[0]
+        sev = {r[0]: r[1] for r in conn.execute("SELECT severity, COUNT(*) FROM detections GROUP BY severity").fetchall()}
+        active = conn.execute("SELECT COUNT(*) FROM detections WHERE status='active'").fetchone()[0]
+    finally:
+        conn.close()
+    coverage_pct = round((covered / total_tech * 100), 1) if total_tech else 0
+    prompt = f"""Generate an executive threat briefing.
+Data: {total_det} detections, {active} active, {total_tech} techniques, {covered} covered ({coverage_pct}%), {total_telem} telemetry sources, severity: {json.dumps(sev)}.
+Include: CRITICAL FINDINGS, COVERAGE METRICS, TOP RISK AREAS, PRIORITY RECOMMENDATIONS, 30-DAY ACTION PLAN."""
+    try:
+        response = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=1024,
+            system="You are a CISO advisor. Be data-driven and impactful.",
+            messages=[{"role": "user", "content": prompt}])
+        return {"briefing": response.content[0].text, "tokens_used": response.usage.input_tokens + response.usage.output_tokens}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  HEALTH CHECK
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/health")
+def ai_health():
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    return {
+        "ai_configured": bool(api_key),
+        "api_key_set": bool(api_key),
+        "api_key_preview": f"{api_key[:12]}...{api_key[-4:]}" if api_key else None,
+        "model": "claude-haiku-4-5-20251001",
+        "features": ["chat", "mask", "unmask", "explain", "analyze-log", "ioc", "search",
+                      "attack-chain", "quality-score", "threat-hunt", "briefing",
+                      "suggest-rule", "auto-map", "gap-analysis", "validate", "deployment-docs"],
+        "mask_store_size": len(_mask_store),
+    }

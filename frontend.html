@@ -449,8 +449,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div class="fc-link amber">Browse articles →</div>
       </div>
 
-      <div class="ai-card">
-        <div class="ai-card-tag">COMING SOON</div>
+      <div class="ai-card" onclick="toggleAIPanel()" style="cursor:pointer;transition:all 0.3s ease">
+        <span style="background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono)">● LIVE</span>
         <h3>AI-Assisted Detection</h3>
         <p>Auto-generate Sigma rules from threat intel, mask sensitive fields in events, and get AI-powered gap analysis and remediation recommendations.</p>
         <div class="ai-chips">
@@ -818,6 +818,50 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </div>
 
 <script>
+ /* ── Rule Explainer ───────────────────────────────────────────────────────────── */
+async function explainRule() {
+  var d = ALL_DETECTIONS.find(function(x) { return x.id == currentDetectionId; });
+  if (!d) { alert('Detection not found'); return; }
+
+  var panel = document.getElementById('aiPanel');
+  var fab = document.getElementById('aiFab');
+  if (!panel.classList.contains('visible')) {
+    panel.classList.add('visible');
+    fab.classList.add('open');
+  }
+  document.querySelectorAll('.ai-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.ai-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('.ai-tab').classList.add('active');
+  document.getElementById('ai-tab-chat').classList.add('active');
+
+  addMessage('user', 'Explain this detection: ' + d.title);
+  showTyping();
+
+  fetch('/api/ai/explain', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: d.title || '',
+      description: d.description || '',
+      sigma_rule: d.sigma_rule || '',
+      tags: d.tags || '',
+      severity: d.severity || ''
+    })
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    removeTyping();
+    if (data.explanation) {
+      addMessage('assistant', data.explanation);
+    } else {
+      addMessage('assistant', 'Error: ' + (data.detail || 'No response'));
+    }
+  })
+  .catch(function(err) {
+    removeTyping();
+    addMessage('assistant', 'Error: ' + err.message);
+  });
+}
 const API = "http://127.0.0.1:8000";
 // OV helpers
 function ovCount(id,target,sfx){if(sfx===undefined)sfx='';var el=document.getElementById(id);if(!el)return;var n=0,step=Math.max(1,Math.ceil(target/50));var iv=setInterval(function(){n=Math.min(n+step,target);el.textContent=n+sfx;if(n>=target)clearInterval(iv);},25);}
@@ -1021,6 +1065,10 @@ function openDetection(id) {
     </div>
     ${d.sigma_rule?`<div class="drawer-section"><div class="drawer-section-title">Sigma Rule</div><div class="code-block">${d.sigma_rule}</div></div>`:''}
     <div class="drawer-section">
+      <button onclick="explainRule()" id="ai-explain-btn" style="padding:8px 16px;font-size:12px;font-family:var(--mono);background:linear-gradient(135deg,#e8284a,#8b2be2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px">🤖 Explain with AI</button>
+      <div id="ai-explain-result" style="display:none;margin-top:12px;background:rgba(139,43,226,0.06);border:1px solid rgba(139,43,226,0.15);border-radius:8px;padding:14px;font-size:12px;color:var(--text);line-height:1.7;font-family:var(--sans)"></div>
+    </div>
+    <div class="drawer-section">
       <div class="drawer-section-title">False Positives</div>
       <div style="font-size:12px;color:var(--text2);line-height:1.7">${d.false_positives||'None documented.'}</div>
     </div>`;
@@ -1037,7 +1085,9 @@ function closeDrawer() {
 function renderTelemetry(data) {
   const grid = document.getElementById('telem-grid');
   if (data.length === 0) { grid.innerHTML = '<div style="color:var(--text3);font-family:var(--mono);font-size:12px">No telemetry sources yet. Add your first source using the + Add Source button.</div>'; return; }
-  grid.innerHTML = data.map(t => `
+  grid.innerHTML = data.map(t => {
+    const safeLog = (t.sample_log||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `
     <div class="telem-card ${t.status}">
       <div class="telem-name">${t.name}</div>
       <div class="telem-source">${t.platform||''}</div>
@@ -1046,10 +1096,25 @@ function renderTelemetry(data) {
         <span class="status-pill sp-${t.status==='healthy'?'active':t.status==='degraded'?'testing':'disabled'}">${t.status}</span>
       </div>
       <div style="margin-top:8px;font-size:11px;color:var(--text3)">${t.coverage||''}</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--accent4);font-family:var(--mono)">${t.log_fields||''}</div>
+      ${t.sample_log ? `<details style="margin-top:8px">
+        <summary style="font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--mono)">▸ Sample Log</summary>
+        <pre style="margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:10px;font-family:var(--mono);color:var(--text);white-space:pre-wrap;max-height:180px;overflow-y:auto;line-height:1.5">${safeLog}</pre>
+        <button onclick="copyTelemLog(${t.id})" data-log-id="${t.id}" style="margin-top:4px;padding:3px 10px;font-size:10px;font-family:var(--mono);background:linear-gradient(135deg,#e8284a,#8b2be2);color:#fff;border:none;border-radius:4px;cursor:pointer">Copy to Mask</button>
+      </details>` : ''}
       <div style="margin-top:8px"><button class="btn btn-danger" style="padding:2px 8px;font-size:10px" onclick="deleteTelemetry(${t.id})">Remove</button></div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
+function copyTelemLog(id) {
+  const src = ALL_TELEMETRY.find(t => t.id === id);
+  if (src && src.sample_log) {
+    navigator.clipboard.writeText(src.sample_log);
+    const btn = document.querySelector(`[data-log-id="${id}"]`);
+    if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy to Mask', 1500); }
+  }
+}
 let COVERAGE_DATA = []; // populated from /api/mitre/coverage
 
 async function renderAttackMatrix() {
@@ -1740,5 +1805,822 @@ document.addEventListener('click', function(e) {
 });
 
 </script>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ABSEGA AI ASSISTANT — Floating Panel
+     Paste this entire block BEFORE the closing </body> tag in frontend.html
+     ═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- AI Panel Styles -->
+<style>
+/* ── Floating AI Button ──────────────────────────────────────────────────── */
+
+/* ── AI Floating Button — Spectacular ─────────────────────────────── */
+.ai-fab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, #e8284a, #8b2be2, #06b6d4, #e8284a);
+  background-size: 300% 300%;
+  animation: ai-gradient-spin 3s ease infinite, ai-float 3s ease-in-out infinite;
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 20px rgba(232,40,74,0.4), 0 0 60px rgba(139,43,226,0.2), 0 0 100px rgba(6,182,212,0.1);
+  transition: transform .2s;
+}
+.ai-fab:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 30px rgba(232,40,74,0.6), 0 0 80px rgba(139,43,226,0.4), 0 0 120px rgba(6,182,212,0.2);
+}
+.ai-fab::before {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  background: linear-gradient(135deg, #e8284a, #8b2be2, #06b6d4, #e8284a);
+  background-size: 300% 300%;
+  animation: ai-gradient-spin 3s ease infinite;
+  z-index: -1; opacity: 0.5; filter: blur(8px);
+}
+.ai-fab::after {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: #e8284a; border-right-color: #8b2be2;
+  animation: ai-ring-spin 2s linear infinite;
+  opacity: 0.6;
+}
+.ai-fab svg { width: 24px; height: 24px; fill: #fff; filter: drop-shadow(0 0 4px rgba(255,255,255,0.5)); }
+.ai-fab.open svg.icon-ai { display: none; }
+.ai-fab:not(.open) svg.icon-close { display: none; }
+.ai-fab.open::after { animation: none; opacity: 0; }
+.ai-fab.open { animation: ai-gradient-spin 3s ease infinite; }
+
+@keyframes ai-gradient-spin {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes ai-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes ai-ring-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes ai-icon-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px rgba(255,255,255,0.8)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 12px rgba(255,255,255,1)); }
+}
+@keyframes ai-dot-blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+/* ── Panel Container ─────────────────────────────────────────────────────── */
+.ai-panel {
+  position: fixed; bottom: 88px; right: 24px; z-index: 9998;
+  width: 420px; height: 580px; max-height: calc(100vh - 120px);
+  background: #09080f; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; display: flex; flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  opacity: 0; pointer-events: none; transform: translateY(16px) scale(0.96);
+  transition: opacity .25s, transform .25s;
+  overflow: hidden;
+}
+.ai-panel.visible { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+
+/* ── Panel Header ────────────────────────────────────────────────────────── */
+.ai-header {
+  padding: 14px 16px 0 16px; flex-shrink: 0;
+}
+.ai-header-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.ai-header-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, #e8284a, #8b2be2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.ai-header-text h3 {
+  font-family: var(--sans); font-size: 14px; font-weight: 700; color: #f5f0ff; margin: 0;
+}
+.ai-header-text span {
+  font-family: var(--mono); font-size: 10px; color: #8b7fa8;
+}
+.ai-model-badge {
+  margin-left: auto; font-family: var(--mono); font-size: 9px;
+  padding: 2px 7px; border-radius: 4px; color: #8b7fa8;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+.ai-tabs {
+  display: flex; gap: 2px; padding: 0 16px 0 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.ai-tab {
+  padding: 8px 14px; font-family: var(--mono); font-size: 11px;
+  color: #8b7fa8; background: none; border: none; cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all .15s;
+}
+.ai-tab:hover { color: #f5f0ff; }
+.ai-tab.active { color: #e8284a; border-bottom-color: #e8284a; }
+
+/* ── Tab Content ──────────────────────────────────────────────────────────── */
+.ai-tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.ai-tab-content.active { display: flex; }
+
+/* ── Chat Messages ────────────────────────────────────────────────────────── */
+.ai-messages {
+  flex: 1; overflow-y: auto; padding: 14px 16px; display: flex;
+  flex-direction: column; gap: 12px;
+}
+.ai-msg {
+  max-width: 92%; padding: 10px 14px; border-radius: 10px;
+  font-size: 12.5px; line-height: 1.65; word-wrap: break-word;
+}
+.ai-msg.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(232,40,74,0.15), rgba(139,43,226,0.15));
+  border: 1px solid rgba(232,40,74,0.2); color: #f5f0ff;
+}
+.ai-msg.assistant {
+  align-self: flex-start; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06); color: #f5f0ff;
+}
+.ai-msg.assistant code {
+  background: rgba(255,255,255,0.06); padding: 1px 5px;
+  border-radius: 3px; font-family: var(--mono); font-size: 11.5px;
+}
+.ai-msg.assistant pre {
+  background: #05040a; padding: 10px 12px; border-radius: 6px;
+  overflow-x: auto; margin: 8px 0; border: 1px solid rgba(255,255,255,0.06);
+}
+.ai-msg.assistant pre code {
+  background: none; padding: 0; font-size: 11px; color: #06b6d4;
+}
+.ai-msg .msg-time {
+  font-size: 9px; color: #3d3558; margin-top: 4px;
+  font-family: var(--mono);
+}
+.ai-welcome {
+  text-align: center; padding: 30px 20px; color: #8b7fa8;
+}
+.ai-welcome h4 { color: #f5f0ff; font-size: 15px; margin-bottom: 6px; }
+.ai-welcome p { font-size: 12px; line-height: 1.6; }
+.ai-welcome .ai-suggestions {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 14px;
+}
+.ai-suggestion {
+  padding: 5px 11px; font-size: 11px; font-family: var(--mono);
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px; color: #8b7fa8; cursor: pointer; transition: all .15s;
+}
+.ai-suggestion:hover {
+  color: #e8284a; border-color: rgba(232,40,74,0.3);
+  background: rgba(232,40,74,0.05);
+}
+
+/* ── Chat Input ───────────────────────────────────────────────────────────── */
+.ai-input-area {
+  padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+}
+.ai-input {
+  flex: 1; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 9px 12px; color: #f5f0ff; font-size: 12.5px;
+  font-family: var(--sans); resize: none; outline: none;
+  min-height: 38px; max-height: 100px; line-height: 1.4;
+  transition: border-color .15s;
+}
+.ai-input:focus { border-color: rgba(232,40,74,0.4); }
+.ai-input::placeholder { color: #3d3558; }
+.ai-send {
+  width: 38px; height: 38px; border-radius: 8px; border: none;
+  background: linear-gradient(135deg, #e8284a, #8b2be2);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, opacity .15s; flex-shrink: 0;
+}
+.ai-send:hover { transform: scale(1.05); }
+.ai-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.ai-send svg { width: 16px; height: 16px; fill: #fff; }
+
+/* ── Typing Indicator ─────────────────────────────────────────────────────── */
+.ai-typing { display: flex; gap: 4px; padding: 10px 14px; align-self: flex-start; }
+.ai-typing span {
+  width: 6px; height: 6px; border-radius: 50%; background: #8b7fa8;
+  animation: ai-bounce .6s infinite alternate;
+}
+.ai-typing span:nth-child(2) { animation-delay: .15s; }
+.ai-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes ai-bounce { to { opacity: .3; transform: translateY(-4px); } }
+
+/* ── Mask / Unmask Tab ────────────────────────────────────────────────────── */
+.ai-mask-area {
+  flex: 1; padding: 16px; overflow-y: auto; display: flex;
+  flex-direction: column; gap: 12px;
+}
+.ai-mask-area label {
+  font-family: var(--mono); font-size: 11px; color: #8b7fa8;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ai-mask-area textarea {
+  width: 100%; min-height: 120px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+  padding: 10px 12px; color: #f5f0ff; font-family: var(--mono);
+  font-size: 11.5px; resize: vertical; outline: none; line-height: 1.5;
+}
+.ai-mask-area textarea:focus { border-color: rgba(232,40,74,0.4); }
+.ai-mask-btn {
+  padding: 9px 18px; border-radius: 7px; border: none;
+  font-family: var(--mono); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s; align-self: flex-start;
+}
+.ai-mask-btn.primary {
+  background: linear-gradient(135deg, #e8284a, #8b2be2); color: #fff;
+}
+.ai-mask-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,40,74,0.3); }
+.ai-mask-btn.secondary {
+  background: rgba(255,255,255,0.04); color: #f5f0ff;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.ai-mask-result {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px; padding: 12px; font-family: var(--mono);
+  font-size: 11px; color: #06b6d4; white-space: pre-wrap;
+  line-height: 1.5; max-height: 200px; overflow-y: auto;
+}
+.ai-mask-info {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.ai-mask-tag {
+  padding: 3px 8px; border-radius: 4px; font-family: var(--mono);
+  font-size: 10px; background: rgba(232,40,74,0.1);
+  color: #e8284a; border: 1px solid rgba(232,40,74,0.2);
+}
+.ai-mask-id {
+  padding: 4px 8px; border-radius: 4px; font-family: var(--mono);
+  font-size: 10px; background: rgba(16,185,129,0.1);
+  color: #10b981; border: 1px solid rgba(16,185,129,0.2);
+  cursor: pointer;
+}
+.ai-mask-id:hover { background: rgba(16,185,129,0.2); }
+.ai-unmask-id-input {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 7px;
+  padding: 8px 12px; color: #10b981; font-family: var(--mono);
+  font-size: 12px; outline: none;
+}
+.ai-unmask-id-input:focus { border-color: rgba(16,185,129,0.4); }
+.ai-role-select {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 7px; padding: 8px 12px; color: #f5f0ff;
+  font-family: var(--mono); font-size: 12px; outline: none; width: 100%;
+}
+.ai-status-bar {
+  padding: 6px 16px; font-family: var(--mono); font-size: 9px;
+  color: #3d3558; border-top: 1px solid rgba(255,255,255,0.04);
+  display: flex; justify-content: space-between; flex-shrink: 0;
+}
+.ai-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  border-color: #8b2be2;
+  box-shadow: 0 0 20px rgba(232,40,74,0.3), 0 0 40px rgba(139,43,226,0.2), 0 8px 32px rgba(0,0,0,0.4);
+  background: linear-gradient(135deg, rgba(232,40,74,0.08), rgba(139,43,226,0.08), rgba(6,182,212,0.05));
+  transition: all 0.3s ease;
+}
+</style>
+
+<!-- AI Floating Button -->
+<button class="ai-fab" id="aiFab" onclick="toggleAIPanel()">
+  <div class="icon-ai" style="position:relative;width:28px;height:28px">
+    <svg viewBox="0 0 24 24" style="width:28px;height:28px;fill:#fff;filter:drop-shadow(0 0 6px rgba(255,255,255,0.8));animation:ai-icon-pulse 2s ease-in-out infinite">
+      <path d="M21.928 11.607c-.202-.488-.635-.605-.928-.633V8c0-1.103-.897-2-2-2h-6V4.61c.305-.274.5-.668.5-1.11a1.5 1.5 0 0 0-3 0c0 .442.195.836.5 1.11V6H5c-1.103 0-2 .897-2 2v2.997l-.082.006A1 1 0 0 0 1.99 12.006l.082-.006V15c-1.103 0-2 .897-2 2v2c0 1.103.897 2 2 2h18c1.103 0 2-.897 2-2v-2c0-1.103-.897-2-2-2v-3.087l.082.006a1 1 0 0 0 .928-1.006l-.082-.006zM5 8h14v7H5V8zm3.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM8 16h8v1H8v-1z"/>
+    </svg>
+    <div style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#10b981;border-radius:50%;animation:ai-dot-blink 1.5s ease-in-out infinite;box-shadow:0 0 6px #10b981"></div>
+  </div>
+  <svg class="icon-close" viewBox="0 0 24 24" style="width:24px;height:24px;fill:#fff"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+</button>
+<!-- AI Panel -->
+<div class="ai-panel" id="aiPanel">
+  <!-- Header -->
+  <div class="ai-header">
+    <div class="ai-header-top">
+      <div class="ai-header-icon">🤖</div>
+      <div class="ai-header-text">
+        <h3>ABSEGA AI</h3>
+        <span>Detection Intelligence</span>
+      </div>
+      <div class="ai-model-badge">Claude Haiku</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+<div class="ai-tabs" style="flex-wrap:wrap;gap:0">
+  <button class="ai-tab active" onclick="switchAITab('chat')">◈ Chat</button>
+  <button class="ai-tab" onclick="switchAITab('mask')">◉ Mask</button>
+  <button class="ai-tab" onclick="switchAITab('unmask')">◎ Unmask</button>
+  <button class="ai-tab" onclick="switchAITab('logai')">⚡ Log AI</button>
+  <button class="ai-tab" onclick="switchAITab('ioc')">🔍 IOC</button>
+  <button class="ai-tab" onclick="switchAITab('search')">⌕ Search</button>
+  <button class="ai-tab" onclick="switchAITab('chain')">🔗 Chain</button>
+  <button class="ai-tab" onclick="switchAITab('hunt')">🎯 Hunt</button>
+  <button class="ai-tab" onclick="switchAITab('briefing')">📊 Briefing</button>
+</div>
+  <!-- ═══ Chat Tab ═══ -->
+  <div class="ai-tab-content active" id="ai-tab-chat">
+    <div class="ai-messages" id="aiMessages">
+      <div class="ai-welcome">
+        <h4>Detection Intelligence</h4>
+        <p>Ask me anything about your detections, MITRE coverage, Sigma rules, or log analysis.</p>
+        <div class="ai-suggestions">
+          <span class="ai-suggestion" onclick="aiSuggest(this)">What are my coverage gaps?</span>
+          <span class="ai-suggestion" onclick="aiSuggest(this)">Explain T1059.001</span>
+          <span class="ai-suggestion" onclick="aiSuggest(this)">How many Linux rules?</span>
+          <span class="ai-suggestion" onclick="aiSuggest(this)">Top critical detections</span>
+        </div>
+      </div>
+    </div>
+    <div class="ai-input-area">
+      <textarea class="ai-input" id="aiInput" placeholder="Ask ABSEGA AI..." rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChat()}"></textarea>
+      <button class="ai-send" id="aiSendBtn" onclick="sendAIChat()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══ Mask Tab ═══ -->
+  <div class="ai-tab-content" id="ai-tab-mask">
+    <div class="ai-mask-area">
+      <label>Paste log data to mask</label>
+      <textarea id="maskInput" placeholder='Paste raw log here...&#10;&#10;Example:&#10;EventID=4625 TargetUserName="john.smith" IpAddress="172.16.50.42" Computer="DC01.corp.local"'></textarea>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="ai-mask-btn primary" onclick="maskData()">🔒 Mask Sensitive Data</button>
+        <button class="ai-mask-btn secondary" onclick="clearMask()">Clear</button>
+      </div>
+      <div id="maskResult" style="display:none;">
+        <label>Masked output</label>
+        <div class="ai-mask-result" id="maskOutput"></div>
+        <div style="margin-top:8px;">
+          <div class="ai-mask-info" id="maskInfo"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Unmask Tab ═══ -->
+  <div class="ai-tab-content" id="ai-tab-unmask">
+    <div class="ai-mask-area">
+      <label>Mask ID</label>
+      <input type="text" class="ai-unmask-id-input" id="unmaskId" placeholder="Paste mask ID here (e.g. a3f8b2c1e5d74f90)">
+      <label>Masked log data</label>
+      <textarea id="unmaskInput" placeholder="Paste the masked log text here..."></textarea>
+      <label>Your role</label>
+      <select class="ai-role-select" id="unmaskRole">
+        <option value="Admin">Admin</option>
+        <option value="Engineer">Engineer</option>
+        <option value="Analyst">Analyst</option>
+      </select>
+      <button class="ai-mask-btn primary" onclick="unmaskData()">🔓 De-mask Data</button>
+      <div id="unmaskResult" style="display:none;">
+        <label>Original data</label>
+        <div class="ai-mask-result" id="unmaskOutput" style="color:#10b981;"></div>
+      </div>
+      <div id="unmaskError" style="display:none;">
+        <div style="padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:12px;font-family:var(--mono);" id="unmaskErrorMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+   <!-- Log Analyzer Tab -->
+  <div class="ai-tab-content" id="ai-tab-logai">
+    <div class="ai-mask-area">
+      <label>Paste raw log to analyze</label>
+      <textarea id="logaiInput" placeholder="Paste any raw log — Sysmon XML, auditd, sshd, Windows Event Log, JSON..."></textarea>
+      <button class="ai-mask-btn primary" onclick="analyzeLog()">⚡ Analyze Log</button>
+      <div id="logaiResult" style="display:none;">
+        <div class="ai-mask-result" id="logaiOutput" style="color:var(--text);line-height:1.7"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IOC Enrichment Tab -->
+  <div class="ai-tab-content" id="ai-tab-ioc">
+    <div class="ai-mask-area">
+      <label>Paste IOC (IP address, hash, or domain)</label>
+      <input type="text" class="ai-unmask-id-input" id="iocInput" placeholder="e.g. 185.220.101.45 or evil-domain.com" style="color:var(--text)">
+      <button class="ai-mask-btn primary" onclick="enrichIOC()">🔍 Analyze IOC</button>
+      <div id="iocResult" style="display:none;">
+        <div style="margin-bottom:8px"><span class="ai-mask-tag" id="iocType"></span></div>
+        <div class="ai-mask-result" id="iocOutput" style="color:var(--text);line-height:1.7"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Natural Language Search Tab -->
+  <div class="ai-tab-content" id="ai-tab-search">
+    <div class="ai-mask-area">
+      <label>Search detections in plain English</label>
+      <input type="text" class="ai-unmask-id-input" id="nlSearchInput" placeholder="e.g. Find all Linux privilege escalation rules" style="color:var(--text)" onkeydown="if(event.key==='Enter')nlSearch()">
+      <button class="ai-mask-btn primary" onclick="nlSearch()">⌕ Search</button>
+      <div id="nlSearchResult" style="display:none;">
+        <div style="font-size:11px;color:var(--accent4);font-family:var(--mono);margin-bottom:8px" id="nlSearchSummary"></div>
+        <div id="nlSearchList" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Attack Chain Tab -->
+  <div class="ai-tab-content" id="ai-tab-chain">
+    <div class="ai-mask-area">
+      <label>Paste multiple logs to reconstruct attack chain</label>
+      <textarea id="chainInput" style="min-height:150px" placeholder="Paste multiple log entries here..."></textarea>
+      <button class="ai-mask-btn primary" onclick="reconstructChain()">🔗 Reconstruct Attack Chain</button>
+      <div id="chainResult" style="display:none;">
+        <div class="ai-mask-result" id="chainOutput" style="color:var(--text);line-height:1.7;max-height:300px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Threat Hunt Tab -->
+  <div class="ai-tab-content" id="ai-tab-hunt">
+    <div class="ai-mask-area">
+      <label>Enter your hunt hypothesis</label>
+      <input type="text" class="ai-unmask-id-input" id="huntInput" placeholder="e.g. Hunt for lateral movement via SSH in Linux servers" style="color:var(--text)" onkeydown="if(event.key==='Enter')startHunt()">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <span class="ai-suggestion" onclick="document.getElementById('huntInput').value=this.textContent;startHunt()" style="font-size:10px;padding:3px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#8b7fa8;cursor:pointer">Living off the land on Linux</span>
+        <span class="ai-suggestion" onclick="document.getElementById('huntInput').value=this.textContent;startHunt()" style="font-size:10px;padding:3px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#8b7fa8;cursor:pointer">Credential theft via LSASS</span>
+        <span class="ai-suggestion" onclick="document.getElementById('huntInput').value=this.textContent;startHunt()" style="font-size:10px;padding:3px 8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#8b7fa8;cursor:pointer">C2 beaconing over DNS</span>
+      </div>
+      <button class="ai-mask-btn primary" onclick="startHunt()" style="margin-top:8px">🎯 Generate Hunt Plan</button>
+      <div id="huntResult" style="display:none;">
+        <div class="ai-mask-result" id="huntOutput" style="color:var(--text);line-height:1.7;max-height:300px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Executive Briefing Tab -->
+  <div class="ai-tab-content" id="ai-tab-briefing">
+    <div class="ai-mask-area">
+      <div style="text-align:center;padding:10px 0">
+        <div style="font-size:28px;margin-bottom:8px">📊</div>
+        <div style="font-size:13px;color:var(--text);font-weight:600;margin-bottom:4px">Executive Threat Briefing</div>
+        <div style="font-size:11px;color:#8b7fa8;line-height:1.5;margin-bottom:12px">AI-generated security posture report<br>using live platform data for leadership review</div>
+      </div>
+      <button class="ai-mask-btn primary" onclick="generateBriefing()" style="align-self:center">📊 Generate Executive Briefing</button>
+      <div id="briefingResult" style="display:none;">
+        <div class="ai-mask-result" id="briefingOutput" style="color:var(--text);line-height:1.7;max-height:300px"></div>
+      </div>
+    </div>
+  </div>
+  <div class="ai-status-bar">
+    <span id="aiTokens">Ready</span>
+    <span>Powered by Claude</span>
+  </div>
+</div>
+
+<!-- AI Panel JavaScript -->
+<script>
+/* ── Panel Toggle ─────────────────────────────────────────────────────────── */
+function toggleAIPanel() {
+  const panel = document.getElementById('aiPanel');
+  const fab = document.getElementById('aiFab');
+  panel.classList.toggle('visible');
+  fab.classList.toggle('open');
+}
+
+/* ── Tab Switching ────────────────────────────────────────────────────────── */
+function switchAITab(tab) {
+  document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ai-tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('ai-tab-' + tab).classList.add('active');
+}
+
+/* ── Suggestion Click ─────────────────────────────────────────────────────── */
+function aiSuggest(el) {
+  document.getElementById('aiInput').value = el.textContent;
+  sendAIChat();
+}
+
+/* ── Chat ──────────────────────────────────────────────────────────────────── */
+let aiChatHistory = [];
+
+function addMessage(role, text) {
+  const container = document.getElementById('aiMessages');
+  // Remove welcome screen on first message
+  const welcome = container.querySelector('.ai-welcome');
+  if (welcome) welcome.remove();
+
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + role;
+  
+  const time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  
+  if (role === 'assistant') {
+    // Basic markdown rendering
+    let html = text
+      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+    div.innerHTML = html + `<div class="msg-time">${time}</div>`;
+  } else {
+    div.textContent = text;
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'msg-time';
+    timeDiv.textContent = time;
+    div.appendChild(timeDiv);
+  }
+  
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('aiMessages');
+  const div = document.createElement('div');
+  div.className = 'ai-typing';
+  div.id = 'aiTyping';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('aiTyping');
+  if (el) el.remove();
+}
+
+async function sendAIChat() {
+  const input = document.getElementById('aiInput');
+  const sendBtn = document.getElementById('aiSendBtn');
+  const message = input.value.trim();
+  if (!message) return;
+
+  // Add user message
+  addMessage('user', message);
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+  showTyping();
+
+  try {
+    const res = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message })
+    });
+
+    removeTyping();
+
+    if (!res.ok) {
+      const err = await res.json();
+      addMessage('assistant', '⚠️ Error: ' + (err.detail || 'Something went wrong'));
+    } else {
+      const data = await res.json();
+      addMessage('assistant', data.reply);
+      document.getElementById('aiTokens').textContent = `${data.tokens_used} tokens used`;
+    }
+  } catch (err) {
+    removeTyping();
+    addMessage('assistant', '⚠️ Connection error: Could not reach the AI service.');
+  }
+
+  sendBtn.disabled = false;
+  input.focus();
+}
+
+/* ── Auto-resize textarea ─────────────────────────────────────────────────── */
+document.getElementById('aiInput').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+
+/* ── Masking ───────────────────────────────────────────────────────────────── */
+let lastMaskId = null;
+
+async function maskData() {
+  const input = document.getElementById('maskInput').value.trim();
+  if (!input) return;
+
+  try {
+    const res = await fetch('/api/ai/mask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ log_text: input })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert('Masking error: ' + (err.detail || 'Unknown error'));
+      return;
+    }
+
+    const data = await res.json();
+    lastMaskId = data.mask_id;
+
+    // Show result
+    document.getElementById('maskResult').style.display = 'block';
+    document.getElementById('maskOutput').textContent = data.masked_text;
+
+    // Show tags
+    let infoHtml = `<span class="ai-mask-tag">${data.masked_count} fields masked</span>`;
+    data.masked_fields.forEach(f => {
+      infoHtml += `<span class="ai-mask-tag">${f.type}</span>`;
+    });
+    infoHtml += `<span class="ai-mask-id" onclick="copyMaskId('${data.mask_id}')" title="Click to copy">ID: ${data.mask_id}</span>`;
+    document.getElementById('maskInfo').innerHTML = infoHtml;
+
+  } catch (err) {
+    alert('Connection error: ' + err.message);
+  }
+}
+
+function copyMaskId(id) {
+  navigator.clipboard.writeText(id);
+  // Also auto-fill the unmask tab
+  document.getElementById('unmaskId').value = id;
+  const copied = event.target;
+  const origText = copied.textContent;
+  copied.textContent = '✓ Copied!';
+  setTimeout(() => { copied.textContent = origText; }, 1500);
+}
+
+function clearMask() {
+  document.getElementById('maskInput').value = '';
+  document.getElementById('maskResult').style.display = 'none';
+  document.getElementById('maskOutput').textContent = '';
+  document.getElementById('maskInfo').innerHTML = '';
+}
+
+/* ── De-masking ────────────────────────────────────────────────────────────── */
+async function unmaskData() {
+  const maskId = document.getElementById('unmaskId').value.trim();
+  const maskedText = document.getElementById('unmaskInput').value.trim();
+  const role = document.getElementById('unmaskRole').value;
+
+  if (!maskId || !maskedText) {
+    alert('Please provide both the Mask ID and the masked log text.');
+    return;
+  }
+
+  document.getElementById('unmaskResult').style.display = 'none';
+  document.getElementById('unmaskError').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/ai/unmask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mask_id: maskId, masked_text: maskedText, role: role })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      document.getElementById('unmaskError').style.display = 'block';
+      document.getElementById('unmaskErrorMsg').textContent = '🔒 ' + (err.detail || 'Access denied');
+      return;
+    }
+
+    const data = await res.json();
+    document.getElementById('unmaskResult').style.display = 'block';
+    document.getElementById('unmaskOutput').textContent = data.original_text;
+
+  } catch (err) {
+    document.getElementById('unmaskError').style.display = 'block';
+    document.getElementById('unmaskErrorMsg').textContent = 'Connection error: ' + err.message;
+  }
+}
+/* ── Log Analyzer ──── */
+function analyzeLog() {
+  var input = document.getElementById('logaiInput').value.trim();
+  if (!input) return;
+  var result = document.getElementById('logaiResult');
+  var output = document.getElementById('logaiOutput');
+  result.style.display = 'none';
+  output.innerHTML = '<span style="color:#8b7fa8">⏳ Analyzing log...</span>';
+  result.style.display = 'block';
+  fetch('/api/ai/analyze-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ log_text: input }) })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.analysis) { output.innerHTML = data.analysis.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#c084fc">$1</strong>').replace(/\n/g, '<br>'); }
+    else { output.innerHTML = '<span style="color:#ef4444">Error: ' + (data.detail || 'No analysis') + '</span>'; }
+  })
+  .catch(function(err) { output.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>'; });
+}
+
+/* ── IOC Enrichment ──── */
+function enrichIOC() {
+  var input = document.getElementById('iocInput').value.trim();
+  if (!input) return;
+  var result = document.getElementById('iocResult');
+  var output = document.getElementById('iocOutput');
+  var typeTag = document.getElementById('iocType');
+  result.style.display = 'none';
+  output.innerHTML = '<span style="color:#8b7fa8">⏳ Enriching IOC...</span>';
+  result.style.display = 'block';
+  fetch('/api/ai/ioc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ioc: input }) })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    typeTag.textContent = data.ioc_type || 'Unknown';
+    if (data.analysis) { output.innerHTML = data.analysis.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#c084fc">$1</strong>').replace(/\n/g, '<br>'); }
+    else { output.innerHTML = '<span style="color:#ef4444">Error: ' + (data.detail || 'No analysis') + '</span>'; }
+  })
+  .catch(function(err) { output.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>'; });
+}
+
+/* ── Natural Language Search ──── */
+function nlSearch() {
+  var input = document.getElementById('nlSearchInput').value.trim();
+  if (!input) return;
+  var result = document.getElementById('nlSearchResult');
+  var summary = document.getElementById('nlSearchSummary');
+  var list = document.getElementById('nlSearchList');
+  result.style.display = 'none';
+  summary.textContent = '⏳ Searching...';
+  list.innerHTML = '';
+  result.style.display = 'block';
+  fetch('/api/ai/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: input }) })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    summary.textContent = data.summary || 'Search complete';
+    var results = data.results || [];
+    if (results.length === 0) { list.innerHTML = '<div style="color:#8b7fa8;font-size:11px">No matching detections found.</div>'; return; }
+    var html = '';
+    results.forEach(function(r) {
+      html += '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px 10px;cursor:pointer" onclick="openDetection(' + r.id + ');toggleAIPanel()">'
+        + '<div style="font-size:12px;color:var(--text);font-weight:600">' + (r.title || 'Rule #' + r.id) + '</div>'
+        + '<div style="font-size:10px;color:#8b7fa8;margin-top:3px;font-family:var(--mono)">' + (r.reason || '') + '</div>'
+        + '</div>';
+    });
+    list.innerHTML = html;
+  })
+  .catch(function(err) { summary.textContent = 'Error: ' + err.message; });
+}
+/* ── Attack Chain ──── */
+function reconstructChain() {
+  var input = document.getElementById('chainInput').value.trim();
+  if (!input) return;
+  var result = document.getElementById('chainResult');
+  var output = document.getElementById('chainOutput');
+  output.innerHTML = '<span style="color:#8b7fa8">⏳ Reconstructing attack chain...</span>';
+  result.style.display = 'block';
+  fetch('/api/ai/attack-chain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logs: input }) })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.chain) { output.innerHTML = data.chain.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#c084fc">$1</strong>').replace(/→/g, '<span style="color:#e8284a">→</span>').replace(/\n/g, '<br>'); }
+    else { output.innerHTML = '<span style="color:#ef4444">Error: ' + (data.detail || 'No analysis') + '</span>'; }
+  })
+  .catch(function(err) { output.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>'; });
+}
+
+/* ── Threat Hunt ──── */
+function startHunt() {
+  var input = document.getElementById('huntInput').value.trim();
+  if (!input) return;
+  var result = document.getElementById('huntResult');
+  var output = document.getElementById('huntOutput');
+  output.innerHTML = '<span style="color:#8b7fa8">⏳ Generating hunt plan...</span>';
+  result.style.display = 'block';
+  fetch('/api/ai/threat-hunt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hypothesis: input }) })
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.plan) { output.innerHTML = data.plan.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#c084fc">$1</strong>').replace(/\n/g, '<br>'); }
+    else { output.innerHTML = '<span style="color:#ef4444">Error: ' + (data.detail || 'No plan') + '</span>'; }
+  })
+  .catch(function(err) { output.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>'; });
+}
+
+/* ── Executive Briefing ──── */
+function generateBriefing() {
+  var result = document.getElementById('briefingResult');
+  var output = document.getElementById('briefingOutput');
+  output.innerHTML = '<span style="color:#8b7fa8">⏳ Generating executive briefing from live data...</span>';
+  result.style.display = 'block';
+  fetch('/api/ai/briefing')
+  .then(function(res) { return res.json(); })
+  .then(function(data) {
+    if (data.briefing) { output.innerHTML = data.briefing.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#c084fc">$1</strong>').replace(/\n/g, '<br>'); }
+    else { output.innerHTML = '<span style="color:#ef4444">Error: ' + (data.detail || 'No briefing') + '</span>'; }
+  })
+  .catch(function(err) { output.innerHTML = '<span style="color:#ef4444">Error: ' + err.message + '</span>'; });
+}
+
+/* ── Detection Quality Scorer ──── */
+function scoreDetection() {
+  var d = ALL_DETECTIONS.find(function(x) { return x.id == currentDetectionId; });
+  if (!d) { alert('Detection not found'); return; }
+  var panel = document.getElementById('aiPanel');
+  var fab = document.getElementById('aiFab');
+  if (!panel.classList.contains('visible')) { panel.classList.add('visible'); fab.classList.add('open'); }
+  document.querySelectorAll('.ai-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.ai-tab-content').forEach(function(c) { c.classList.remove('active'); });
+  document.querySelector('.ai-tab').classList.add('active');
+  document.getElementById('ai-tab-chat').classList.add('active');
+  addMessage('user', '📊 Score detection quality: ' + d.title);
+  showTyping();
+  fetch('/api/ai/quality-score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: d.title || '', description: d.description || '', sigma_rule: d.sigma_rule || '', tags: d.tags || '', severity: d.severity || '' }) })
+  .then(function(res) { return res.json(); })
+  .then(function(data) { removeTyping(); if (data.score) { addMessage('assistant', data.score); } else { addMessage('assistant', 'Error: ' + (data.detail || 'No score')); } })
+  .catch(function(err) { removeTyping(); addMessage('assistant', 'Error: ' + err.message); });
+}
+</script>
+
 </body>
 </html>

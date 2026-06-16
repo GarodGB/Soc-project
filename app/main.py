@@ -3,6 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
+from dotenv import load_dotenv
+
+# Safely load .env; ignore files with non-UTF-8 encodings that break parsing on Windows
+try:
+    load_dotenv()
+except UnicodeDecodeError:
+    # If the .env file uses a different encoding (e.g. UTF-16), skip loading it.
+    pass
 
 from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai
 
