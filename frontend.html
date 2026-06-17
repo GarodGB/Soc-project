@@ -661,22 +661,37 @@ tr:hover td { background: rgba(255,255,255,.02); }
 </div>
 
 <!-- RESEARCH -->
+<!-- RESEARCH -->
 <div id="panel-research" class="panel" style="padding:24px">
   <div class="page-header">
-    <div><div class="page-title">Research Library</div><div class="page-subtitle">Attack/detection documentation and deployment guides</div></div>
-    <div class="page-actions"><button class="btn btn-accent" onclick="openAddResearch()">+ New Article</button></div>
+    <div>
+      <div class="page-title">Research Library</div>
+      <div class="page-subtitle">Attack/detection documentation, deployment guides, and imported cyber-security blogs</div>
+    </div>
+    <div class="page-actions">
+      <button class="btn btn-blue" id="fetch-blogs-btn" onclick="fetchCyberBlogs()">↻ Fetch Blogs</button>
+      <button class="btn btn-accent" onclick="openAddResearch()">+ New Article</button>
+    </div>
   </div>
+
   <div class="research-layout">
     <div class="research-list">
-      <div class="research-list-header"><input class="search-input" style="width:100%;font-size:11px;padding:5px 8px" placeholder="Search library…" oninput="filterResearch(this.value)"></div>
-      <div class="research-items" id="research-items"><div style="padding:12px;color:var(--text3);font-size:12px;font-family:var(--mono)">No articles yet</div></div>
+      <div class="research-list-header">
+        <input class="search-input" style="width:100%;font-size:11px;padding:5px 8px" placeholder="Search library…" oninput="filterResearch(this.value)">
+      </div>
+      <div class="research-items" id="research-items">
+        <div style="padding:12px;color:var(--text3);font-size:12px;font-family:var(--mono)">No articles yet</div>
+      </div>
     </div>
+
     <div class="research-detail">
       <div class="research-detail-header">
         <div style="font-size:14px;font-weight:500;font-family:var(--mono)" id="rd-title">Select an article</div>
         <div style="font-size:11px;color:var(--text3);margin-top:3px" id="rd-meta"></div>
       </div>
-      <div class="research-detail-body" id="rd-body"><div style="color:var(--text3);font-size:12px;font-family:var(--mono);padding:20px 0">← Select an article from the list</div></div>
+      <div class="research-detail-body" id="rd-body">
+        <div style="color:var(--text3);font-size:12px;font-family:var(--mono);padding:20px 0">← Select an article from the list</div>
+      </div>
     </div>
   </div>
 </div>
@@ -1033,8 +1048,17 @@ async function loadTelemetry() {
 }
 
 async function loadResearch() {
-  try { ALL_RESEARCH = JSON.parse(localStorage.getItem('absega_research') || '[]'); renderResearchList(ALL_RESEARCH); }
-  catch(e) { ALL_RESEARCH = []; }
+  try {
+    const res = await fetch(`${API}/api/research/?limit=300`);
+    if (!res.ok) throw new Error('Research API failed');
+
+    ALL_RESEARCH = await res.json();
+    renderResearchList(ALL_RESEARCH);
+  } catch(e) {
+    console.warn('Research load failed', e);
+    ALL_RESEARCH = [];
+    renderResearchList([]);
+  }
 }
 
 function switchNav(el, id) {
@@ -1446,39 +1470,182 @@ async function deleteTelemetry(id) {
   catch(e) { alert('Failed to delete.'); }
 }
 
-function renderResearchList(data) {
-  const list = document.getElementById('research-items');
-  if (data.length === 0) { list.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:12px;font-family:var(--mono)">No articles yet. Click + New Article to add one.</div>'; return; }
-  list.innerHTML = data.map((a,i) => `
-    <div class="research-item" onclick="openResearch(${i})" id="ritem-${i}">
-      <div class="research-item-title">${a.title}</div>
-      <div class="research-item-meta"><span>${a.date}</span><span>${a.author}</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${(a.tags||'').split(',').map(t=>`<span class="tag mitre" style="font-size:9px;padding:1px 5px">${t.trim()}</span>`).join('')}</div>
-    </div>`).join('');
-}
-function openResearch(i) {
-  const a = ALL_RESEARCH[i]; if (!a) return;
-  document.querySelectorAll('.research-item').forEach(x => x.classList.remove('active'));
-  const el = document.getElementById('ritem-'+i); if(el) el.classList.add('active');
-  document.getElementById('rd-title').textContent = a.title;
-  document.getElementById('rd-meta').innerHTML = `<span style="font-family:var(--mono);font-size:11px;color:var(--text3)">${a.date} · ${a.author}</span>`;
-  document.getElementById('rd-body').innerHTML = `<div style="font-size:12px;color:var(--text2);line-height:1.8;white-space:pre-wrap">${a.content}</div>`;
-}
-function filterResearch(q) {
-  const filtered = ALL_RESEARCH.filter(a => a.title.toLowerCase().includes(q.toLowerCase())||(a.tags||'').toLowerCase().includes(q.toLowerCase()));
-  renderResearchList(filtered);
-}
-function saveResearch() {
-  const title = document.getElementById('res-title').value.trim();
-  if (!title) { alert('Please enter a title.'); return; }
-  const article = { title, author:document.getElementById('res-author').value||'unknown', tags:document.getElementById('res-tags').value||'', content:document.getElementById('res-content').value||'', date:new Date().toISOString().slice(0,10) };
-  ALL_RESEARCH.unshift(article);
-  localStorage.setItem('absega_research', JSON.stringify(ALL_RESEARCH));
-  closeResearchModal(); renderResearchList(ALL_RESEARCH); switchNav(null,'research');
-  document.querySelectorAll('.nav-tab').forEach(t => { if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'research'")) t.classList.add('active'); });
-  ['res-title','res-author','res-tags','res-content'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
+function tagChips(tags) {
+  return String(tags || '')
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean)
+    .slice(0, 6)
+    .map(t => `<span class="tag mitre" style="font-size:9px;padding:1px 5px">${escapeHtml(t)}</span>`)
+    .join('');
+}
+
+function renderResearchList(data) {
+  const list = document.getElementById('research-items');
+  if (!list) return;
+
+  if (data.length === 0) {
+    list.innerHTML = '<div style="padding:12px;color:var(--text3);font-size:12px;font-family:var(--mono)">No articles yet. Click ↻ Fetch Blogs or + New Article.</div>';
+    return;
+  }
+
+  list.innerHTML = data.map((a, i) => `
+    <div class="research-item" onclick="openResearch(${i})" id="ritem-${i}">
+      <div class="research-item-title">${escapeHtml(a.title)}</div>
+      <div class="research-item-meta">
+        <span>${escapeHtml(a.date || (a.published_at || a.created_at || '').slice(0, 10))}</span>
+        <span>${escapeHtml(a.source_name || a.author || 'unknown')}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${tagChips(a.tags)}</div>
+    </div>
+  `).join('');
+}
+
+function openResearch(i) {
+  const a = ALL_RESEARCH[i];
+  if (!a) return;
+
+  document.querySelectorAll('.research-item').forEach(x => x.classList.remove('active'));
+
+  const el = document.getElementById('ritem-' + i);
+  if (el) el.classList.add('active');
+
+  document.getElementById('rd-title').textContent = a.title || 'Untitled';
+
+  const date = a.date || (a.published_at || a.created_at || '').slice(0, 10);
+  const source = a.source_name || a.author || 'unknown';
+
+  const sourceLink = a.source_url
+    ? ` · <a href="${escapeHtml(a.source_url)}" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:none">Open source ↗</a>`
+    : '';
+
+  document.getElementById('rd-meta').innerHTML =
+    `<span style="font-family:var(--mono);font-size:11px;color:var(--text3)">${escapeHtml(date)} · ${escapeHtml(source)}${sourceLink}</span>`;
+
+  const tagsHtml = tagChips(a.tags);
+
+  const summary = a.summary
+    ? `<div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">Summary</div>
+       <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:18px">${escapeHtml(a.summary)}</div>`
+    : '';
+
+  document.getElementById('rd-body').innerHTML = `
+    ${tagsHtml ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">${tagsHtml}</div>` : ''}
+    ${summary}
+    <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;margin-bottom:8px">Research Notes</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.8;white-space:pre-wrap">${escapeHtml(a.content || '')}</div>
+    ${a.source_url ? `<div style="margin-top:18px"><a href="${escapeHtml(a.source_url)}" target="_blank" rel="noopener" class="btn btn-blue" style="text-decoration:none">Open Original Article ↗</a></div>` : ''}
+  `;
+}
+
+function filterResearch(q) {
+  q = String(q || '').toLowerCase();
+
+  const filtered = ALL_RESEARCH.filter(a =>
+    (a.title || '').toLowerCase().includes(q) ||
+    (a.tags || '').toLowerCase().includes(q) ||
+    (a.source_name || '').toLowerCase().includes(q) ||
+    (a.content || '').toLowerCase().includes(q)
+  );
+
+  renderResearchList(filtered);
+}
+
+async function fetchCyberBlogs() {
+  const btn = document.getElementById('fetch-blogs-btn');
+
+  if (btn) {
+    btn.textContent = '⟳ Fetching…';
+    btn.disabled = true;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/research/fetch-blogs?per_source=8`, {
+      method: 'POST'
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || 'Fetch failed');
+    }
+
+    await loadResearch();
+    switchNav(null, 'research');
+
+    const errText = data.errors && data.errors.length
+      ? `\nSome feeds failed: ${data.errors.map(e => e.source).join(', ')}`
+      : '';
+
+    alert(`Imported ${data.inserted} new article(s). Skipped ${data.skipped_existing} existing article(s).${errText}`);
+
+  } catch(e) {
+    alert('Could not fetch blogs. Check internet connection and backend logs. ' + e.message);
+  }
+
+  if (btn) {
+    btn.textContent = '↻ Fetch Blogs';
+    btn.disabled = false;
+  }
+}
+
+async function saveResearch() {
+  const title = document.getElementById('res-title').value.trim();
+
+  if (!title) {
+    alert('Please enter a title.');
+    return;
+  }
+
+  const article = {
+    title,
+    author: document.getElementById('res-author').value || 'unknown',
+    tags: document.getElementById('res-tags').value || '',
+    content: document.getElementById('res-content').value || '',
+    source_name: 'Manual',
+    source_url: ''
+  };
+
+  try {
+    const res = await fetch(`${API}/api/research/`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(article)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Save failed');
+    }
+
+    closeResearchModal();
+    await loadResearch();
+    switchNav(null, 'research');
+
+    document.querySelectorAll('.nav-tab').forEach(t => {
+      if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'research'")) {
+        t.classList.add('active');
+      }
+    });
+
+    ['res-title', 'res-author', 'res-tags', 'res-content'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+
+  } catch(e) {
+    alert('Could not save research article. ' + e.message);
+  }
+}
 async function loadValidation() {
   try {
     const [casesRes, summaryRes] = await Promise.all([

@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import os
 from dotenv import load_dotenv
@@ -9,10 +8,9 @@ from dotenv import load_dotenv
 try:
     load_dotenv()
 except UnicodeDecodeError:
-    # If the .env file uses a different encoding (e.g. UTF-16), skip loading it.
     pass
 
-from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai
+from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai, research
 
 app = FastAPI(
     title="ABSEGA Detection Platform",
@@ -36,29 +34,36 @@ app.include_router(mitre.router,       prefix="/api/mitre",      tags=["MITRE AT
 app.include_router(validation.router,  prefix="/api/validation", tags=["Validation"])
 app.include_router(atomic.router,      prefix="/api/atomic",     tags=["Atomic Red Team"])
 app.include_router(ai.router,          prefix="/api/ai",         tags=["AI Features"])
+app.include_router(research.router,    prefix="/api/research",   tags=["Research"])
 
 # Serve the frontend HTML files from the project root
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..")
+
 
 @app.get("/")
 def serve_homepage():
     return FileResponse(os.path.join(FRONTEND_DIR, "homepage.html"))
 
+
 @app.get("/homepage.html")
 def serve_homepage_explicit():
     return FileResponse(os.path.join(FRONTEND_DIR, "homepage.html"))
+
 
 @app.get("/login.html")
 def serve_login():
     return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
 
+
 @app.get("/frontend.html")
 def serve_frontend():
     return FileResponse(os.path.join(FRONTEND_DIR, "frontend.html"))
 
+
 @app.get("/absega-logo.png")
 def serve_logo():
     return FileResponse(os.path.join(FRONTEND_DIR, "absega-logo.png"))
+
 
 @app.get("/health")
 def health():
