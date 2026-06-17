@@ -52,8 +52,12 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 .content { flex: 1; overflow-y: auto; padding: 24px; }
 .content.no-pad { padding: 0; }
-.panel { display: none; }
-.panel.active { display: block; }
+.panel { display: none; opacity: 0; }
+.panel.active { display: block; animation: panelFadeIn .28s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes panelFadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+.nav-tab { position: relative; }
+.nav-tab::after { content:''; position:absolute; bottom:-1px; left:8px; right:8px; height:2px; background:var(--accent); border-radius:2px; transform: scaleX(0); transition: transform .2s ease; }
+.nav-tab.active::after { transform: scaleX(1); }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
 .page-title { font-size: 20px; font-weight: 500; color: var(--text); font-family: var(--mono); }
 .page-subtitle { font-size: 12px; color: var(--text2); margin-top: 3px; }
@@ -247,8 +251,72 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .ts-viewall { padding:6px 14px; background:transparent; color:var(--text2); font-size:12px; font-family:var(--mono); border:1px solid rgba(255,255,255,0.12); border-radius:6px; cursor:pointer; transition:all .15s; }
 .ts-viewall:hover { color:var(--text); border-color:rgba(255,255,255,0.3); }
 </style>
+
+<style>
+#app-loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center; flex-direction: column;
+  transition: opacity .4s ease, visibility .4s ease;
+}
+#app-loader.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+#app-loader::before {
+  content:''; position:absolute; top:-200px; right:-150px; width:600px; height:600px;
+  background: radial-gradient(circle, rgba(232,40,74,0.08) 0%, transparent 65%); pointer-events:none;
+}
+#app-loader::after {
+  content:''; position:absolute; bottom:-180px; left:-120px; width:500px; height:500px;
+  background: radial-gradient(circle, rgba(139,43,226,0.06) 0%, transparent 65%); pointer-events:none;
+}
+.loader-mark {
+  width: 64px; height: 64px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  margin-bottom: 24px; position: relative; z-index: 1;
+  animation: loaderPulse 1.8s ease-in-out infinite;
+}
+.loader-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+@keyframes loaderPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(232,40,74,0.35); }
+  50%      { box-shadow: 0 0 0 14px rgba(232,40,74,0); }
+}
+.loader-bars { display: flex; gap: 5px; margin-bottom: 18px; z-index: 1; }
+.loader-bar {
+  width: 4px; height: 22px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  animation: loaderBar 1s ease-in-out infinite;
+}
+.loader-bar:nth-child(1) { animation-delay: 0s; }
+.loader-bar:nth-child(2) { animation-delay: .12s; }
+.loader-bar:nth-child(3) { animation-delay: .24s; }
+.loader-bar:nth-child(4) { animation-delay: .36s; }
+.loader-bar:nth-child(5) { animation-delay: .48s; }
+@keyframes loaderBar {
+  0%, 100% { transform: scaleY(0.35); opacity: .5; }
+  50%      { transform: scaleY(1); opacity: 1; }
+}
+.loader-text {
+  font-family: var(--mono); font-size: 12px; color: var(--text2);
+  letter-spacing: .08em; text-transform: uppercase; z-index: 1;
+}
+.loader-text span { color: var(--accent); }
+.loader-sub {
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+  margin-top: 8px; z-index: 1;
+}
+</style>
 </head>
 <body>
+
+<div id="app-loader">
+  <div class="loader-mark"><img src="absega-logo.png" alt="ABSEGA"></div>
+  <div class="loader-bars">
+    <div class="loader-bar"></div><div class="loader-bar"></div><div class="loader-bar"></div>
+    <div class="loader-bar"></div><div class="loader-bar"></div>
+  </div>
+  <div class="loader-text">ABSEGA <span>/</span> DET</div>
+  <div class="loader-sub" id="loader-status">Initializing platform…</div>
+</div>
 
 <div class="topbar">
   <div class="logo"><div class="logo-mark"><a href="homepage.html" class="back"><img src="absega-logo.png" style="width:26px;height:26px;border-radius:4px;object-fit:cover" alt="A"></a></div><span style="font-family:var(--mono);font-size:13px;font-weight:700"><span style="color:#e8284a">ABSEGA</span><span style="color:var(--text2)"> / DET</span></span></div>
@@ -887,7 +955,20 @@ const MITRE_TACTICS = [
   { id:'TA0010', name:'Exfiltration', techniques:[{id:'T1048',name:'Exfil Over C2'},{id:'T1041',name:'C2 Channel'},{id:'T1567',name:'Web Service'},{id:'T1011',name:'Over Bluetooth'}]},
 ];
 
-document.addEventListener('DOMContentLoaded', () => {
+function setLoaderStatus(text) {
+  const el = document.getElementById('loader-status');
+  if (el) el.textContent = text;
+}
+
+function hideLoader() {
+  const loader = document.getElementById('app-loader');
+  if (loader) {
+    loader.classList.add('hide');
+    setTimeout(() => loader.remove(), 450);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
   // Simple session check (placeholder auth)
   const user = sessionStorage.getItem('absega_user');
   if (!user) {
@@ -898,8 +979,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const wm = document.getElementById('welcome-msg');
   if (wm) wm.textContent = 'Signed in as ' + user;
 
-  loadDetections(); loadTelemetry(); loadResearch(); loadValidation(); renderAttackMatrix();
+  setLoaderStatus('Loading detection rules…');
+  await loadDetections();
+  setLoaderStatus('Loading telemetry sources…');
+  await loadTelemetry();
+  setLoaderStatus('Loading research library…');
+  await loadResearch();
+  setLoaderStatus('Loading validation cases…');
+  await loadValidation();
+  setLoaderStatus('Mapping ATT&CK coverage…');
+  await renderAttackMatrix();
+  setLoaderStatus('Ready');
+
+  // Small delay so "Ready" is visible briefly, then fade out
+  setTimeout(hideLoader, 250);
 });
+
+// Safety net: never let the loader hang forever if something fails silently
+setTimeout(() => {
+  const loader = document.getElementById('app-loader');
+  if (loader && !loader.classList.contains('hide')) hideLoader();
+}, 6000);
 
 function logout() {
   sessionStorage.removeItem('absega_token');
@@ -938,15 +1038,43 @@ async function loadResearch() {
 }
 
 function switchNav(el, id) {
+  const target = document.getElementById('panel-' + id);
+  if (!target) return;
+  const current = document.querySelector('.panel.active');
+
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + id).classList.add('active');
-  const mc = document.getElementById('main-content');
-  mc.classList.toggle('no-pad', id === 'overview');
   if (el) el.classList.add('active');
   else document.querySelectorAll('.nav-tab').forEach(t => {
     if (t.getAttribute('onclick') && t.getAttribute('onclick').includes("'" + id + "'")) t.classList.add('active');
   });
+
+  const mc = document.getElementById('main-content');
+  mc.classList.toggle('no-pad', id === 'overview');
+
+  if (current && current !== target) {
+    current.style.animation = 'none';
+    current.style.opacity = '0';
+    current.style.transform = 'translateY(-4px)';
+    current.style.transition = 'opacity .15s ease, transform .15s ease';
+    setTimeout(() => {
+      current.classList.remove('active');
+      current.style.transition = '';
+      current.style.transform = '';
+      current.style.opacity = '';
+      current.style.animation = '';
+      target.style.animation = 'none';
+      target.style.opacity = '';
+      target.style.transform = '';
+      target.classList.add('active');
+      requestAnimationFrame(() => { target.style.animation = ''; });
+    }, 130);
+  } else {
+    target.style.animation = '';
+    target.style.opacity = '';
+    target.style.transform = '';
+    target.classList.add('active');
+  }
+
   if (id === 'testrunner' && ALL_DETECTIONS.length > 0) renderTrRuleList(ALL_DETECTIONS.slice(0, 80));
 }
 
@@ -954,7 +1082,23 @@ function filterSidebar(el, filter) {
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   el.classList.add('active');
   switchNav(null, 'detections');
-  const filtered = filter === 'all' ? ALL_DETECTIONS : ALL_DETECTIONS.filter(d => d.status === filter || d.severity === filter || d.category === filter);
+
+  const STATUS_MAP = { active: ['stable','active'], testing: ['test','testing'], draft: ['experimental','draft'] };
+  const SEVERITIES = ['critical','high','medium','low'];
+  const CATEGORIES = ['windows','linux','identity'];
+
+  let filtered;
+  if (filter === 'all') {
+    filtered = ALL_DETECTIONS;
+  } else if (STATUS_MAP[filter]) {
+    filtered = ALL_DETECTIONS.filter(d => STATUS_MAP[filter].includes(d.status));
+  } else if (SEVERITIES.includes(filter)) {
+    filtered = ALL_DETECTIONS.filter(d => d.severity === filter);
+  } else if (CATEGORIES.includes(filter)) {
+    filtered = ALL_DETECTIONS.filter(d => d.category === filter);
+  } else {
+    filtered = ALL_DETECTIONS.filter(d => d.status === filter || d.severity === filter || d.category === filter);
+  }
   renderDetections(filtered);
 }
 
