@@ -22,10 +22,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:rgba(232,40,74,0.3);border-radius:2px}
 
-/* ── CANVAS ── */
 #canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
 
-/* ── NAV ── */
 .nav{position:fixed;top:0;left:0;right:0;z-index:500;height:64px;
   display:flex;align-items:center;justify-content:space-between;padding:0 56px;
   background:rgba(5,4,10,0.8);backdrop-filter:blur(20px);
@@ -52,12 +50,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .btn-brand:hover{box-shadow:0 0 28px rgba(232,40,74,0.4),0 0 60px rgba(139,43,226,0.2);
   transform:translateY(-1px)}
 
-/* ── HERO ── */
 .hero{position:relative;z-index:1;min-height:100vh;
   display:grid;grid-template-columns:1fr 1fr;gap:80px;
   align-items:center;padding:120px 56px 80px;max-width:1320px;margin:0 auto}
 
-/* glows */
 .g1{position:fixed;top:-200px;left:-150px;width:700px;height:700px;border-radius:50%;
   background:radial-gradient(circle,rgba(232,40,74,0.12) 0%,transparent 65%);
   pointer-events:none;z-index:0}
@@ -68,7 +64,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   background:radial-gradient(circle,rgba(192,38,211,0.05) 0%,transparent 65%);
   pointer-events:none;z-index:0}
 
-/* hero left */
 .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 14px 5px 8px;
   background:rgba(232,40,74,0.08);border:1px solid rgba(232,40,74,0.25);
   border-radius:99px;margin-bottom:28px}
@@ -103,7 +98,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   transition:all .2s}
 .btn-hero-g:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.06)}
 
-/* stat pills */
 .stat-pills{display:flex;gap:14px;flex-wrap:wrap}
 .spill{background:rgba(255,255,255,0.03);border:1px solid var(--border2);
   border-radius:12px;padding:16px 20px;backdrop-filter:blur(10px);
@@ -115,7 +109,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .spill-n{font-size:26px;font-weight:800;font-family:var(--mono);line-height:1;margin-bottom:3px}
 .spill-l{font-size:11px;color:var(--text2);letter-spacing:.03em}
 
-/* ── TERMINAL MOCKUP ── */
 .term{background:var(--bg3);border:1px solid var(--border2);border-radius:16px;
   overflow:hidden;position:relative;
   box-shadow:0 40px 100px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,0.04),
@@ -133,6 +126,9 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .tlive{display:flex;align-items:center;gap:5px;font-size:10px;
   font-family:var(--mono);color:var(--red)}
 .tlive-d{width:5px;height:5px;border-radius:50%;background:var(--red);animation:live 2s infinite}
+.tdemo{display:flex;align-items:center;gap:5px;font-size:10px;
+  font-family:var(--mono);color:var(--text2);letter-spacing:.04em}
+.tdemo-d{width:5px;height:5px;border-radius:50%;background:var(--text2)}
 .tbody{padding:16px;display:flex;flex-direction:column;gap:10px}
 .trow-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .tstat{background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:8px;padding:10px}
@@ -153,7 +149,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .tmxc{flex:1;min-width:32px;height:22px;border-radius:4px;display:flex;
   align-items:center;justify-content:center;font-size:8px;font-family:var(--mono);font-weight:600}
 
-/* ── TRUST ── */
+
 .trust{position:relative;z-index:1;padding:24px 56px;
   border-top:1px solid var(--border);border-bottom:1px solid var(--border);
   background:rgba(255,255,255,0.01);overflow:hidden}
@@ -168,7 +164,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .titem:hover{color:var(--text2)}
 @keyframes tscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
-/* ── FEATURES ── */
 .features{position:relative;z-index:1;padding:100px 56px;max-width:1280px;margin:0 auto}
 .sec-h{text-align:center;max-width:600px;margin:0 auto 64px}
 .sec-tag{font-size:11px;font-family:var(--mono);letter-spacing:.14em;
@@ -208,7 +203,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .ai-chip{font-size:10px;font-family:var(--mono);color:#c084fc;
   background:rgba(139,43,226,0.1);padding:2px 8px;border-radius:3px}
 
-/* ── STATS BAND ── */
 .stats-sec{position:relative;z-index:1}
 .stats-bg{background:linear-gradient(135deg,var(--bg2),var(--bg3));
   border-top:1px solid var(--border);border-bottom:1px solid var(--border);
@@ -232,7 +226,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .sl{font-size:14px;color:var(--text2);font-weight:500;margin-bottom:4px}
 .ss{font-size:11px;color:var(--text3);font-family:var(--mono)}
 
-/* ── HOW ── */
 .how{position:relative;z-index:1;padding:100px 56px;max-width:1280px;margin:0 auto}
 .steps-g{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
   background:var(--border);border:1px solid var(--border);border-radius:16px;overflow:hidden}
@@ -248,7 +241,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .sh{font-size:15px;font-weight:700;color:#fff;margin-bottom:8px}
 .sp{font-size:12px;color:var(--text2);line-height:1.75}
 
-/* ── CTA ── */
 .cta-sec{position:relative;z-index:1;padding:100px 56px;text-align:center;
   background:radial-gradient(ellipse 80% 80% at 50% 100%,rgba(139,43,226,0.08),transparent)}
 .cta-box{max-width:600px;margin:0 auto;
@@ -269,7 +261,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .cta-box p{font-size:16px;color:var(--text2);margin-bottom:36px;position:relative;z-index:1}
 .cta-btns{display:flex;gap:12px;justify-content:center;position:relative;z-index:1}
 
-/* ── FOOTER ── */
 .footer{position:relative;z-index:1;padding:36px 56px;
   border-top:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
@@ -281,7 +272,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   font-family:var(--mono);transition:color .15s}
 .footer-links a:hover{color:var(--text2)}
 
-/* ── REVEAL ── */
 .reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease}
 .reveal.in{opacity:1;transform:translateY(0)}
 
@@ -312,7 +302,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 <div class="g2"></div>
 <div class="g3"></div>
 
-<!-- NAV -->
 <nav class="nav">
   <a href="#" class="nav-logo">
     <img src="absega-logo.png" alt="ABSEGA">
@@ -321,17 +310,14 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   <div class="nav-links">
     <a href="#features">Platform</a>
     <a href="#how">Workflow</a>
-    <a href="#stats">Coverage</a>
   </div>
   <div class="nav-right">
-    <a href="login.html" class="btn-ghost">Sign in</a>
-    <a href="login.html" class="btn-brand">Get started →</a>
+    <a href="login.html" class="btn-ghost" id="nav-signin-btn">Sign in</a>
+    <a href="login.html" class="btn-brand" id="nav-getstarted-btn">Get started →</a>
   </div>
 </nav>
 
-<!-- HERO -->
 <section class="hero">
-  <!-- LEFT -->
   <div>
     <div class="hero-badge">
       <div class="bdot-wrap"><div class="bdot"></div></div>
@@ -343,10 +329,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
       <a href="login.html" class="btn-hero-p">Sign in to platform →</a>
       <a href="#features" class="btn-hero-g">Explore capabilities</a>
     </div>
-
   </div>
 
-  <!-- RIGHT: TERMINAL -->
   <div>
     <div class="term">
       <div class="term-shine"></div>
@@ -355,31 +339,31 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         <div class="tdot" style="background:#febc2e"></div>
         <div class="tdot" style="background:#28c840"></div>
         <span class="ttitle">absega-det · Detection Dashboard · platform.internal</span>
-        <div class="tlive"><div class="tlive-d"></div>PLATFORM</div>
+        <div class="tdemo"><div class="tdemo-d"></div>SAMPLE DATA</div>
       </div>
       <div class="tbody">
         <div class="trow-stats">
-          <div class="tstat"><div class="tstat-n" style="color:var(--red)" id="t-total">—</div><div class="tstat-l">Detections</div></div>
-          <div class="tstat"><div class="tstat-n" style="color:var(--purple)">0</div><div class="tstat-l">Active</div></div>
-          <div class="tstat"><div class="tstat-n" style="color:#c026d3" id="t-telem">—</div><div class="tstat-l">Telemetry</div></div>
-          <div class="tstat"><div class="tstat-n" style="color:var(--accent4)">0%</div><div class="tstat-l">Coverage</div></div>
+          <div class="tstat"><div class="tstat-n" style="color:var(--red)">128</div><div class="tstat-l">Detections</div></div>
+          <div class="tstat"><div class="tstat-n" style="color:var(--purple)">12</div><div class="tstat-l">Active</div></div>
+          <div class="tstat"><div class="tstat-n" style="color:#c026d3">35</div><div class="tstat-l">Telemetry</div></div>
+          <div class="tstat"><div class="tstat-n" style="color:var(--accent4)">78%</div><div class="tstat-l">Coverage</div></div>
         </div>
         <div class="tsec">Recent detection rules</div>
         <div class="trule">
           <div class="tsev" style="background:#ef4444"></div>
-          <div class="trname">Cisco Duo MFA Bypass Code Usage</div>
+          <div class="trname">Sample Suspicious Login Activity</div>  
           <div class="trbadge" style="background:rgba(192,38,211,.15);color:#e879f9">Identity</div>
           <div class="trbadge" style="background:rgba(245,158,11,.12);color:var(--warn)">Testing</div>
         </div>
         <div class="trule">
           <div class="tsev" style="background:#f97316"></div>
-          <div class="trname">Abused Debug Privilege Parent Process</div>
+          <div class="trname">Example PowerShell Execution</div>
           <div class="trbadge" style="background:rgba(59,130,246,.12);color:#60a5fa">Windows</div>
           <div class="trbadge" style="background:rgba(16,185,129,.12);color:#34d399">Active</div>
         </div>
         <div class="trule">
           <div class="tsev" style="background:#ef4444"></div>
-          <div class="trname">Kerberoasting TGS Request Pattern</div>
+         <div class="trname">Demo Credential Access Attempt</div>
           <div class="trbadge" style="background:rgba(192,38,211,.15);color:#e879f9">Identity</div>
           <div class="trbadge" style="background:rgba(245,158,11,.12);color:var(--warn)">Testing</div>
         </div>
@@ -399,7 +383,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   </div>
 </section>
 
-<!-- TRUST STRIP -->
 <div class="trust">
   <div class="trust-inner">
     <span class="trust-lbl">Built around</span>
@@ -414,7 +397,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         <span class="titem">NIST CSF</span>
         <span class="titem">OWASP</span>
         <span class="titem">D3FEND</span>
-        <!-- duplicate -->
         <span class="titem">MITRE ATT&CK</span>
         <span class="titem">Sigma HQ</span>
         <span class="titem">Atomic Red Team</span>
@@ -428,7 +410,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   </div>
 </div>
 
-<!-- PIPELINE DIAGRAM -->
 <section style="position:relative;z-index:1;padding:80px 56px;background:linear-gradient(180deg,transparent,rgba(0,0,0,0.3),transparent)">
   <div style="max-width:1280px;margin:0 auto">
     <div style="text-align:center;margin-bottom:48px">
@@ -444,13 +425,11 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
     <div style="position:relative;width:100%;height:460px;border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#04030a">
       <canvas id="pipeline-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
 
-      <!-- LIVE badge -->
       <div style="position:absolute;top:16px;left:16px;display:flex;align-items:center;gap:6px;font-size:10px;font-family:var(--mono);color:var(--text3);z-index:5;background:rgba(0,0,0,.5);padding:4px 10px;border-radius:20px;border:1px solid var(--border)">
-        <div style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:ppulse 2s infinite"></div>
-        DETECTION PIPELINE
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--text3)"></div>
+        DETECTION PIPELINE · SAMPLE DATA
       </div>
 
-      <!-- LEFT COLUMN: Sources -->
       <div style="position:absolute;left:20px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:8px;z-index:5;padding:20px 0">
         <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;padding-left:12px">Source Topics</div>
         <div class="pn ps" data-c="#3b82f6">prod-winlogbeat</div>
@@ -460,7 +439,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         <div class="pn ps" data-c="#06b6d4">prod-network-dns</div>
       </div>
 
-      <!-- CENTER-LEFT STAT: Rules -->
       <div style="position:absolute;left:28%;top:50%;transform:translateY(-50%);z-index:5">
         <div class="pstat" style="border-color:rgba(232,40,74,.3)">
           <div style="font-size:9px;font-family:var(--mono);color:rgba(232,40,74,.8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px"># Rules</div>
@@ -469,7 +447,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         </div>
       </div>
 
-      <!-- CENTER CIRCLE: Pipelines -->
       <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5">
         <div style="width:120px;height:120px;border-radius:50%;border:2px solid rgba(232,40,74,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(232,40,74,.06);position:relative">
           <div style="position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(232,40,74,.12);animation:pring 4s linear infinite"></div>
@@ -479,7 +456,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         </div>
       </div>
 
-      <!-- CENTER-RIGHT STAT: Coverage -->
       <div style="position:absolute;right:28%;top:50%;transform:translateY(-50%);z-index:5">
         <div class="pstat" style="border-color:rgba(139,43,226,.3)">
           <div style="font-size:9px;font-family:var(--mono);color:rgba(139,43,226,.8);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Coverage</div>
@@ -488,7 +464,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
         </div>
       </div>
 
-      <!-- RIGHT COLUMN: Destinations -->
       <div style="position:absolute;right:20px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;gap:8px;z-index:5;padding:20px 0;align-items:flex-end">
         <div style="font-size:9px;font-family:var(--mono);color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;padding-right:12px">Destination Topics</div>
         <div class="pn pd" data-c="#10b981">Active Detections</div>
@@ -509,7 +484,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
 .pd{padding-right:22px;text-align:right}.pd::after{content:'';position:absolute;right:8px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%}
 .pstat{padding:16px 20px;border-radius:12px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);min-width:120px;text-align:center;backdrop-filter:blur(8px)}
 @keyframes pring{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes ppulse{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}50%{box-shadow:0 0 0 5px rgba(16,185,129,0)}}
 </style>
 
 <script>
@@ -526,7 +500,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   resize();
   window.addEventListener('resize', function(){ resize(); });
 
-  // Source Y positions (5 items, centered vertically)
   var SRC_X = 0.17;
   var DST_X = 0.83;
   var CX    = 0.50;
@@ -534,14 +507,12 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   var COLS_SRC = ['59,130,246','59,130,246','139,92,246','139,92,246','6,182,212'];
   var COLS_DST = ['16,185,129','16,185,129','245,158,11','245,158,11','6,182,212'];
 
-  // Build paths
   var PATHS = [];
   for(var i=0;i<5;i++){
     PATHS.push({sx:SRC_X,sy:SYS[i],ex:CX,ey:0.5,col:COLS_SRC[i]});
     PATHS.push({sx:CX,sy:0.5,ex:DST_X,ey:SYS[i],col:COLS_DST[i]});
   }
 
-  // Spawn dots
   PATHS.forEach(function(p){
     for(var k=0;k<3;k++){
       dots.push({p:p, t:Math.random(), speed:0.002+Math.random()*0.003, sz:2+Math.random()*1.5});
@@ -559,7 +530,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
     };
   }
 
-  // Set dot colors from data attribute
   document.querySelectorAll('.ps').forEach(function(el,i){
     if(i<5) el.style.setProperty('--dc', COLS_SRC[i]);
     el.style.paddingLeft='22px';
@@ -572,7 +542,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   function loop(){
     ctx.clearRect(0,0,cv.width,cv.height);
 
-    // Draw bezier paths
     PATHS.forEach(function(p){
       var sx=p.sx*cv.width, sy=p.sy*cv.height;
       var ex=p.ex*cv.width, ey=p.ey*cv.height;
@@ -585,7 +554,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
       ctx.stroke();
     });
 
-    // Draw animated dots
     dots.forEach(function(d){
       d.t += d.speed;
       if(d.t>1) d.t=0;
@@ -605,32 +573,18 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   }
   loop();
 
-  // Live stats
-  var API2="http://127.0.0.1:8000";
-  Promise.all([
-    fetch(API2+'/api/detections/').then(function(r){return r.json();}).catch(function(){return[];}),
-    fetch(API2+'/api/telemetry/').then(function(r){return r.json();}).catch(function(){return[];}),
-    fetch(API2+'/api/mitre/coverage').then(function(r){return r.json();}).catch(function(){return[];})
-  ]).then(function(res){
-    var dets=res[0],telem=res[1],mitre=res[2];
-    var dTotal=Array.isArray(dets)?dets.length:0;
-    var tTotal=Array.isArray(telem)?telem.length:0;
-    var cov=0,tot=mitre.length||1;
-    if(Array.isArray(mitre)) mitre.forEach(function(t){if(t.coverage_state==='covered')cov++;});
-    var score=Math.round((cov/tot)*100);
-    function cnt(id,target,sfx){
-      var el=document.getElementById(id);if(!el)return;
-      var n=0,step=Math.max(1,Math.ceil(target/40));
-      var iv=setInterval(function(){n=Math.min(n+step,target);el.textContent=n+(sfx||'');if(n>=target)clearInterval(iv);},30);
-    }
-    cnt('pipe-rules',dTotal,'');
-    cnt('pipe-telem',tTotal,'');
-    cnt('pipe-coverage',score,'%');
-  }).catch(function(){});
+  // Sample/demo figures — no live backend calls.
+  function cnt(id,target,sfx){
+    var el=document.getElementById(id);if(!el)return;
+    var n=0,step=Math.max(1,Math.ceil(target/40));
+    var iv=setInterval(function(){n=Math.min(n+step,target);el.textContent=n+(sfx||'');if(n>=target)clearInterval(iv);},30);
+  }
+  cnt('pipe-rules',128,'');
+  cnt('pipe-telem',35,'');
+  cnt('pipe-coverage',78,'%');
 })();
 </script>
 
-<!-- FEATURES -->
 <section class="features reveal" id="features">
   <div class="sec-h">
     <div class="sec-tag" style="color:var(--red)">
@@ -701,12 +655,12 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
     <div class="fc fc-ai p">
       <div class="fc-glow"></div>
       <span class="fc-n">06</span>
-      <div class="ai-tag">COMING SOON</div>
+      <div class="ai-tag">LIVE</div>
       <div class="fc-icon" style="background:rgba(139,43,226,0.1);border:1px solid rgba(139,43,226,0.2)">
         <svg viewBox="0 0 24 24" fill="none" stroke="#8b2be2" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
       </div>
       <div class="fc-t">AI-Assisted Detection</div>
-      <div class="fc-d">Auto-generate Sigma rules from threat intel, mask sensitive data fields, and get AI-prioritised gap analysis with remediation recommendations.</div>
+      <div class="fc-d">Generate Sigma rules from threat intel, mask sensitive data fields, and get AI-prioritised gap analysis with remediation recommendations — powered by Claude.</div>
       <div class="ai-chips">
         <span class="ai-chip">Data masking</span>
         <span class="ai-chip">Rule generation</span>
@@ -718,35 +672,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   </div>
 </section>
 
-<!-- STATS -->
-<div class="stats-sec reveal" id="stats">
-  <div class="stats-bg">
-    <div class="stats-inner">
-      <div class="sbox s1">
-        <div class="sn" style="color:var(--red)" id="s-total">0</div>
-        <div class="sl">Detection rules</div>
-        <div class="ss">Win · Linux · Identity</div>
-      </div>
-      <div class="sbox s2">
-        <div class="sn" style="color:var(--purple)" id="s-telem">0</div>
-        <div class="sl">Telemetry sources</div>
-        <div class="ss">Active log pipelines</div>
-      </div>
-      <div class="sbox s3">
-        <div class="sn" style="color:var(--accent3)">176</div>
-        <div class="sl">MITRE techniques</div>
-        <div class="ss">ATT&CK Enterprise v14</div>
-      </div>
-      <div class="sbox s4">
-        <div class="sn" style="color:var(--accent4)" id="s-val">0%</div>
-        <div class="sl">Validation pass rate</div>
-        <div class="ss">TP · FP · TN · FN</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- HOW IT WORKS -->
 <section class="how reveal" id="how">
   <div class="sec-h">
     <div class="sec-tag" style="color:var(--purple)">
@@ -784,7 +709,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   </div>
 </section>
 
-<!-- CTA -->
 <section class="cta-sec reveal">
   <div class="cta-box">
     <span class="cta-tag">Get started today</span>
@@ -797,7 +721,6 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   </div>
 </section>
 
-<!-- FOOTER -->
 <footer class="footer">
   <div class="footer-l">
     <img src="absega-logo.png" alt="ABSEGA">
@@ -806,14 +729,12 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);overflow-x:h
   <div class="footer-links">
     <a href="#features">Platform</a>
     <a href="#how">Workflow</a>
-    <a href="#stats">Stats</a>
     <a href="login.html">Sign in</a>
   </div>
   <span class="footer-copy">© 2026 ABSEGA Security</span>
 </footer>
 
 <script>
-// ── PARTICLE CANVAS ──
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let W, H, particles = [];
@@ -840,7 +761,6 @@ class P {
     this.c = COLORS[Math.floor(Math.random() * COLORS.length)];
   }
   update(){
-    // mouse repulsion
     const dx = this.x - mouse.x, dy = this.y - mouse.y;
     const d = Math.sqrt(dx*dx + dy*dy);
     if(d < 100){
@@ -889,66 +809,10 @@ function loop(){
 }
 loop();
 
-// ── SCROLL REVEAL ──
 const obs = new IntersectionObserver(entries => {
   entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('in'); });
 }, { threshold: 0.08 });
 document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
-
-// ── COUNTER ANIMATION ──
-function counter(el, target, suffix=''){
-  let n = 0;
-  const step = Math.max(1, Math.ceil(target / 50));
-  const t = setInterval(() => {
-    n = Math.min(n + step, target);
-    el.textContent = n + suffix;
-    if(n >= target) clearInterval(t);
-  }, 30);
-}
-
-// ── LIVE API STATS ──
-const API = "http://127.0.0.1:8000";
-(async () => {
-  try {
-    const [dr, tr, vr] = await Promise.all([
-      fetch(`${API}/api/detections/`),
-      fetch(`${API}/api/telemetry/`),
-      fetch(`${API}/api/validation/summary`),
-    ]);
-    if(dr.ok){
-      const d = await dr.json();
-      const total = Array.isArray(d) ? d.length : (d.total||0);
-      document.getElementById('h-total').textContent = total;
-      document.getElementById('t-total').textContent = total;
-      counter(document.getElementById('s-total'), total);
-    }
-    if(tr.ok){
-      const t = await tr.json();
-      const total = Array.isArray(t) ? t.length : (t.total||0);
-      document.getElementById('h-telem').textContent = total;
-      document.getElementById('t-telem').textContent = total;
-      counter(document.getElementById('s-telem'), total);
-    }
-    if(vr.ok){
-      const v = await vr.json();
-      document.getElementById('s-val').textContent = (v.pass_rate||0) + '%';
-    }
-  } catch(e) {}
-})();
-</script>
-<script>
-// If already logged in, update nav buttons to show "Go to Platform" instead of "Sign in"
-(function(){
-  if(sessionStorage.getItem('absega_token')){
-    // Update all login links to go directly to platform
-    document.querySelectorAll('a[href="login.html"]').forEach(function(a){
-      if(a.textContent.trim() === 'Sign in' || a.textContent.trim() === 'Sign in to platform →' || a.textContent.trim() === 'Get started →'){
-        a.href = 'frontend.html';
-        a.textContent = a.textContent.replace('Sign in to platform', 'Go to platform').replace('Sign in', 'Go to platform').replace('Get started', 'Go to platform');
-      }
-    });
-  }
-})();
 </script>
 </body>
 </html>
