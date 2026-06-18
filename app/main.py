@@ -10,7 +10,8 @@ try:
 except UnicodeDecodeError:
     pass
 
-from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai, research
+from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai, research, suggestions, integrations
+from app.db_bootstrap import init_db
 
 app = FastAPI(
     title="ABSEGA Detection Platform",
@@ -18,9 +19,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +41,8 @@ app.include_router(validation.router,  prefix="/api/validation", tags=["Validati
 app.include_router(atomic.router,      prefix="/api/atomic",     tags=["Atomic Red Team"])
 app.include_router(ai.router,          prefix="/api/ai",         tags=["AI Features"])
 app.include_router(research.router,    prefix="/api/research",   tags=["Research"])
-
+app.include_router(suggestions.router, prefix="/api/suggestions", tags=["Suggestions"])
+app.include_router(integrations.router, prefix="/api/integrations", tags=["Integrations"])
 # Serve the frontend HTML files from the project root
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..")
 

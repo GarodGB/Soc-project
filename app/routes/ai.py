@@ -135,21 +135,21 @@ def _mock_ai_answer(prompt: str, system: str = "") -> str:
                     "attack_name": "True Positive — suspicious command execution",
                     "sample_type": "positive",
                     "sample_event": 'EventID=4688 Image=powershell.exe CommandLine="powershell -nop -enc AAAA"',
-                    "expected_result": "match",
+                    "expected_result": "fire",
                     "notes": "Should trigger on suspicious command-line keywords."
                 },
                 {
                     "attack_name": "True Negative — normal admin command",
                     "sample_type": "negative",
                     "sample_event": 'EventID=4688 Image=cmd.exe CommandLine="cmd.exe /c whoami"',
-                    "expected_result": "no_match",
+                    "expected_result": "no_fire",
                     "notes": "Benign command with no suspicious indicators."
                 },
                 {
                     "attack_name": "False Positive — admin script",
                     "sample_type": "positive",
                     "sample_event": 'EventID=4688 Image=powershell.exe CommandLine="powershell -File backup.ps1"',
-                    "expected_result": "match",
+                    "expected_result": "fire",
                     "notes": "May need allowlisting for approved scripts."
                 }
             ],
@@ -704,21 +704,21 @@ Return ONLY a JSON object, no extra text:
       "attack_name":     "True Positive — short description",
       "sample_type":     "positive",
       "sample_event":    "exact log line that SHOULD trigger the rule",
-      "expected_result": "match",
+      "expected_result": "fire",
       "notes":           "why this triggers"
     }},
     {{
       "attack_name":     "True Negative — short description",
       "sample_type":     "negative",
       "sample_event":    "exact log line that should NOT trigger",
-      "expected_result": "no_match",
+      "expected_result": "no_fire",
       "notes":           "why this does not trigger"
     }},
     {{
       "attack_name":     "False Positive — short description",
       "sample_type":     "positive",
       "sample_event":    "log line that might falsely trigger",
-      "expected_result": "match",
+      "expected_result": "fire",
       "notes":           "why this is a false positive scenario"
     }}
   ],
@@ -742,6 +742,9 @@ Return ONLY a JSON object, no extra text:
 
     try:
         for tc in data.get("test_cases", []):
+            expected = (tc.get("expected_result") or "fire").strip().lower()
+            expected = "fire" if expected in ("match", "fire", "detected", "true", "tp") else "no_fire"
+
             conn.execute("""
                 INSERT INTO validation_cases
                     (detection_id, detection_title, attack_name,
@@ -754,7 +757,7 @@ Return ONLY a JSON object, no extra text:
                 tc.get("attack_name", "AI Test"),
                 tc.get("sample_type", "positive"),
                 tc.get("sample_event", ""),
-                tc.get("expected_result", "match"),
+                expected,
             ))
             saved += 1
 

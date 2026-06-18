@@ -1,7 +1,8 @@
 ﻿venv/
+.venv/
 __pycache__/
 *.pyc
 .env
-add_sample_logs.py
-ai_panel_snippet.html
-*.Zone.Identifier
+detection_platform.db
+*_patch.py
+final_patch.py
