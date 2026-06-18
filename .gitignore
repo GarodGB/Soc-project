@@ -1,8 +1,12 @@
-﻿venv/
+venv/
 .venv/
 __pycache__/
 *.pyc
 .env
 detection_platform.db
+detection_platform.db_Zone.Identifier
+*.Zone.Identifier
 *_patch.py
 final_patch.py
+add_sample_logs.py
+ai_panel_snippet.html
