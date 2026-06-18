@@ -236,6 +236,54 @@ def _mock_ai_answer(prompt: str, system: str = "") -> str:
     if "executive threat briefing" in lower:
         return "**CRITICAL FINDINGS:** Demo Mode briefing. Coverage should be reviewed in the Coverage tab.\n**PRIORITY RECOMMENDATIONS:** close high-risk ATT&CK gaps, fix unhealthy telemetry, and validate active rules with sample events."
 
+    if '"tuned_sigma_rule"' in prompt and '"field_mismatches"' in prompt:
+        # Pull the available event fields straight out of the evidence block
+        # so the demo rule at least references real-looking fields.
+        fields_match = re.search(r"Available event fields:\s*([^\n]+)", prompt)
+        sample_fields = [f.strip() for f in fields_match.group(1).split(",")][:3] if fields_match else ["Image", "CommandLine"]
+        condition_field = sample_fields[0] if sample_fields else "Image"
+        return json.dumps({
+            "diagnosis": "Demo Mode: the rule's selection fields don't match the fields present in the sample events, so it never fires on the positive cases.",
+            "field_mismatches": [f"rule expected a narrower match, but events expose: {', '.join(sample_fields)}"],
+            "tuned_sigma_rule": (
+                "title: Demo Tuned Rule\n"
+                "status: test\n"
+                "logsource:\n"
+                "  product: windows\n"
+                "  category: process_creation\n"
+                "detection:\n"
+                "  selection:\n"
+                f"    {condition_field}|contains:\n"
+                "      - mimikatz\n"
+                "      - sekurlsa\n"
+                "      - lsadump\n"
+                "  condition: selection\n"
+                "level: high"
+            ),
+            "changes_made": [
+                "Broadened the selection field to match fields actually present in sample events",
+                "Added additional keyword variants seen in the failing positive cases"
+            ],
+            "confidence": "medium"
+        })
+
+    if '"fleet_assessment"' in prompt and '"triage"' in prompt:
+        ids_match = re.findall(r"Detection (\d+):", prompt)
+        triage = [
+            {
+                "detection_id": int(did),
+                "one_line_diagnosis": "Demo Mode: selection fields likely don't match the fields present in real telemetry.",
+                "priority": "high" if i < 3 else "medium",
+                "recommended_action": "tune_rule",
+            }
+            for i, did in enumerate(ids_match)
+        ]
+        return json.dumps({
+            "fleet_assessment": "Demo Mode: these rules are failing because their Sigma selections don't line up with the sample event fields used in validation. Re-run with a real API key for a precise diagnosis per rule.",
+            "triage": triage,
+            "common_pattern": "Demo Mode: many failures look like field-mapping mismatches rather than logic errors."
+        })
+
     return "Demo Mode: ABSEGA AI is running locally because ANTHROPIC_API_KEY is not configured. The platform still works; live Claude answers require a private API key."
 
 
@@ -270,9 +318,32 @@ def ask_claude(prompt: str, system: str = None, max_tokens: int = 1500) -> str:
 
 
 def parse_json(raw: str) -> dict:
-    """Handle all formats Claude might return."""
+    """Handle all formats Claude might return.
+
+    Order matters here: we try the outermost {...} span FIRST, because
+    that's robust even when the JSON's own string values contain literal
+    backtick characters (e.g. a long "overall_assessment" that quotes a
+    code snippet) — splitting on ``` in that case would chop the JSON
+    into invalid fragments before we ever got to try the whole object.
+    """
     clean = raw.strip()
 
+    # 1) Try the outermost { ... } span across the whole response first.
+    start = clean.find("{")
+    end = clean.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(clean[start:end + 1])
+        except Exception:
+            pass
+
+    # 2) Try parsing the whole thing directly (already-clean JSON).
+    try:
+        return json.loads(clean)
+    except Exception:
+        pass
+
+    # 3) Fall back to stripping markdown fences and trying each segment.
     if "```" in clean:
         parts = clean.split("```")
         for part in parts:
@@ -283,19 +354,6 @@ def parse_json(raw: str) -> dict:
                 return json.loads(part)
             except Exception:
                 continue
-
-    try:
-        return json.loads(clean)
-    except Exception:
-        pass
-
-    start = clean.find("{")
-    end = clean.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        try:
-            return json.loads(clean[start:end + 1])
-        except Exception:
-            pass
 
     raise ValueError(f"Could not parse JSON from: {clean[:300]}")
 
@@ -585,8 +643,8 @@ Return ONLY a JSON object, no extra text:
 
     raw = ask_claude(
         prompt,
-        system="You are a senior detection engineer. Return only valid JSON, no explanation before or after.",
-        max_tokens=2000
+        system="You are a senior detection engineer. Return only valid JSON, no explanation before or after. Keep each why_important and tactical_advice field concise (1-2 sentences) so the full response fits comfortably within the token budget.",
+        max_tokens=4000
     )
 
     try:
@@ -708,6 +766,27 @@ Return ONLY a JSON object, no extra text:
 
     data["detection_id"] = detection_id
     data["cases_saved"] = saved
+
+    # Automatically run the newly generated cases through the real Sigma
+    # evaluation engine (pySigma), so the AI suggestion is immediately
+    # validated against actual rule logic instead of staying "untested".
+    if saved > 0 and detection.get("raw_yaml"):
+        try:
+            from app.routes.validation import test_rule
+            run_result = test_rule(detection_id)
+            data["auto_run"] = {
+                "ran":       run_result["ran"],
+                "passed":    run_result["passed"],
+                "failed":    run_result["failed"],
+                "fired":     run_result["fired"],
+                "pass_rate": run_result["pass_rate"],
+                "results":   run_result["results"],
+            }
+        except Exception as e:
+            data["auto_run_error"] = str(e)
+    elif not detection.get("raw_yaml"):
+        data["auto_run_error"] = "Detection has no Sigma YAML yet — cases saved but not executed."
+
     return data
 
 
@@ -802,8 +881,8 @@ Return ONLY a JSON object, no extra text:
 
     raw = ask_claude(
         prompt,
-        system="You are a senior detection engineer. Return only valid JSON, no explanation before or after.",
-        max_tokens=2500
+        system="You are a senior detection engineer. Return only valid JSON, no explanation before or after. Keep each field concise so the full response fits comfortably within the token budget.",
+        max_tokens=4000
     )
 
     try:
@@ -814,6 +893,407 @@ Return ONLY a JSON object, no extra text:
     data["detection_id"] = detection_id
     data["generated_at"] = datetime.utcnow().isoformat()
     return data
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 6 — SMART RULE TUNING
+#  POST /api/ai/tune-rule/{detection_id}
+#
+#  Reads the most recent simulation_results for this detection (the real
+#  pySigma engine's MISS/FP verdicts), feeds the rule + structured failure
+#  evidence to Claude, and asks for a patched Sigma YAML. The original rule
+#  is never overwritten automatically — the engineer reviews and applies it.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TuneRuleRequest(BaseModel):
+    auto_test: bool = True   # if True, immediately test the tuned rule against the same cases
+
+
+@router.post("/tune-rule/{detection_id}")
+def tune_rule(detection_id: int, req: TuneRuleRequest = TuneRuleRequest()):
+    """Diagnose why a detection is failing validation and propose a fixed Sigma rule."""
+
+    from app.sigma_eval import SigmaEvaluationError, evaluate_sigma_rule
+
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM detections WHERE detection_id = ?", (detection_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Detection not found")
+        detection = dict(row)
+
+        if not detection.get("raw_yaml"):
+            raise HTTPException(status_code=422, detail="Detection has no Sigma YAML to tune")
+
+        cases = conn.execute(
+            "SELECT * FROM validation_cases WHERE detection_id = ?", (detection_id,)
+        ).fetchall()
+        cases = [dict(c) for c in cases]
+    finally:
+        conn.close()
+
+    if not cases:
+        raise HTTPException(
+            status_code=422,
+            detail="No validation cases found for this detection. Generate test cases first."
+        )
+
+    # Re-evaluate each case through the real engine to collect concrete
+    # failure evidence (which selections failed and why, which fields the
+    # event actually has). This is the same engine Jason's test-rule uses.
+    failures = []
+    for case in cases:
+        try:
+            details = evaluate_sigma_rule(
+                detection.get("raw_yaml") or "", case.get("sample_event") or ""
+            )
+        except SigmaEvaluationError as exc:
+            details = {"matched": False, "error": str(exc), "event_fields": [], "failure_reasons": [str(exc)]}
+
+        fired = bool(details.get("matched"))
+        expected_fire = case.get("sample_type") == "positive"
+
+        if fired != expected_fire:
+            failures.append({
+                "attack_name":      case.get("attack_name", ""),
+                "sample_type":      case.get("sample_type", ""),
+                "sample_event":     case.get("sample_event", ""),
+                "expected":         "fire" if expected_fire else "no_fire",
+                "actual":           "fire" if fired else "no_fire",
+                "event_fields":     details.get("event_fields", []),
+                "failure_reasons":  details.get("failure_reasons", []),
+            })
+
+    if not failures:
+        return {
+            "detection_id": detection_id,
+            "needs_tuning": False,
+            "message": "All validation cases already pass — no tuning needed.",
+        }
+
+    failures_summary = "\n\n".join([
+        f"Case: {f['attack_name']} ({f['sample_type']})\n"
+        f"  Expected: {f['expected']}, Actual: {f['actual']}\n"
+        f"  Sample event: {f['sample_event'][:300]}\n"
+        f"  Available event fields: {', '.join(f['event_fields'][:25])}\n"
+        f"  Why it failed: {'; '.join(f['failure_reasons'][:5]) or 'no fields matched the rule selection'}"
+        for f in failures[:8]
+    ])
+
+    prompt = f"""You are a senior detection engineer fixing a broken Sigma rule.
+
+Detection title : {detection['title']}
+Platform        : {detection.get('platform', 'N/A')}
+Current Sigma rule (this is the exact YAML currently failing):
+{detection.get('raw_yaml')}
+
+This rule was tested against {len(cases)} sample events using a real Sigma evaluation engine.
+{len(failures)} of them produced the WRONG result. Here is the exact evidence from the engine:
+
+{failures_summary}
+
+Your job: rewrite the Sigma rule's `detection` block (and logsource if needed) so it correctly
+fires on positive samples and stays silent on negative samples, using ONLY fields that actually
+appear in the sample events shown above. Do not invent fields that aren't present in the evidence.
+
+Return ONLY a JSON object, no extra text:
+{{
+  "diagnosis": "1-2 sentences on the root cause of the failures",
+  "field_mismatches": ["field the rule expected", "vs field actually present in events"],
+  "tuned_sigma_rule": "the complete corrected YAML rule as a string",
+  "changes_made": ["specific change 1", "specific change 2"],
+  "confidence": "high|medium|low"
+}}"""
+
+    raw = ask_claude(
+        prompt,
+        system="You are a senior detection engineer. Return only valid JSON, no explanation before or after.",
+        max_tokens=2000
+    )
+    try:
+        data = parse_json(raw)
+    except Exception as e:
+        raise HTTPException(500, f"Parse error: {str(e)}")
+
+    data["detection_id"]     = detection_id
+    data["failures_found"]   = len(failures)
+    data["cases_total"]      = len(cases)
+    data["original_sigma_rule"] = detection.get("raw_yaml")
+
+    # Optionally test the tuned rule against the SAME sample events right now,
+    # without touching the database, so the engineer sees a before/after
+    # pass rate before deciding whether to apply the fix.
+    if req.auto_test and data.get("tuned_sigma_rule"):
+        before_pass = sum(
+            1 for c in cases
+            if (c.get("sample_type") == "positive") == bool(
+                evaluate_sigma_rule(detection.get("raw_yaml") or "", c.get("sample_event") or "").get("matched")
+            )
+        )
+        try:
+            after_pass = 0
+            for c in cases:
+                try:
+                    fired_after = bool(evaluate_sigma_rule(
+                        data["tuned_sigma_rule"], c.get("sample_event") or ""
+                    ).get("matched"))
+                except SigmaEvaluationError:
+                    fired_after = False
+                expected_fire = c.get("sample_type") == "positive"
+                if fired_after == expected_fire:
+                    after_pass += 1
+
+            data["before_after"] = {
+                "before_pass_rate": round(before_pass / len(cases) * 100, 1),
+                "after_pass_rate":  round(after_pass / len(cases) * 100, 1),
+                "before_passed":    before_pass,
+                "after_passed":     after_pass,
+                "total_cases":      len(cases),
+            }
+        except SigmaEvaluationError as exc:
+            data["before_after_error"] = f"Tuned rule failed to parse: {exc}"
+
+    return data
+
+
+@router.post("/tune-rule/{detection_id}/apply")
+def apply_tuned_rule(detection_id: int, body: dict):
+    """Save a tuned Sigma rule (returned by /tune-rule) onto the detection after engineer approval."""
+
+    tuned_sigma_rule = body.get("tuned_sigma_rule")
+    if not tuned_sigma_rule:
+        raise HTTPException(status_code=400, detail="tuned_sigma_rule is required")
+
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT detection_id FROM detections WHERE detection_id = ?", (detection_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Detection not found")
+
+        conn.execute(
+            "UPDATE detections SET raw_yaml = ?, updated_at = ? WHERE detection_id = ?",
+            (tuned_sigma_rule, datetime.utcnow().isoformat(), detection_id)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Re-run the full validation suite for this detection so the new pass
+    # rate is reflected immediately in simulation_results.
+    try:
+        from app.routes.validation import test_rule
+        run_result = test_rule(detection_id)
+        return {"applied": True, "detection_id": detection_id, "re_test": run_result}
+    except Exception as e:
+        return {"applied": True, "detection_id": detection_id, "re_test_error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  FEATURE 7 — BULK HEALTH SCAN
+#  POST /api/ai/health-scan
+#
+#  Runs the real validation engine across every testable detection (one that
+#  has both a Sigma rule and validation cases), ranks them by pass-rate, and
+#  sends the worst N to Claude in a SINGLE batched call for a short triage
+#  diagnosis each. Detections with no validation cases yet are reported as
+#  a separate "untested" bucket rather than silently skipped.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class HealthScanRequest(BaseModel):
+    worst_n:   int = 10
+    scan_limit: int = 200   # cap how many testable detections get scanned per request
+
+
+@router.post("/health-scan")
+def health_scan(req: HealthScanRequest):
+    """Fleet-wide validation health scan with AI triage on the worst-performing rules.
+
+    Uses a read-only evaluation pass (no DB writes per case) so scanning
+    hundreds of detections stays fast. This does NOT replace test_rule —
+    it's a quick triage scan; engineers still use the per-detection
+    Validate button to log an official run.
+    """
+
+    from app.sigma_eval import SigmaEvaluationError, evaluate_sigma_rule
+
+    conn = get_connection()
+    try:
+        testable = conn.execute("""
+            SELECT DISTINCT d.detection_id, d.title, d.raw_yaml
+            FROM detections d
+            JOIN validation_cases v ON v.detection_id = d.detection_id
+            WHERE d.raw_yaml IS NOT NULL AND d.raw_yaml != ''
+            LIMIT ?
+        """, (max(1, req.scan_limit),)).fetchall()
+        testable = [dict(r) for r in testable]
+
+        total_detections = conn.execute("SELECT COUNT(*) FROM detections").fetchone()[0]
+        total_testable = conn.execute("""
+            SELECT COUNT(DISTINCT d.detection_id)
+            FROM detections d
+            JOIN validation_cases v ON v.detection_id = d.detection_id
+            WHERE d.raw_yaml IS NOT NULL AND d.raw_yaml != ''
+        """).fetchone()[0]
+
+        # Pull all cases for the scanned detections in ONE query instead of
+        # one query per detection.
+        detection_ids = [d["detection_id"] for d in testable]
+        cases_by_detection = {}
+        if detection_ids:
+            placeholders = ",".join("?" for _ in detection_ids)
+            case_rows = conn.execute(
+                f"SELECT * FROM validation_cases WHERE detection_id IN ({placeholders})",
+                detection_ids
+            ).fetchall()
+            for c in case_rows:
+                c = dict(c)
+                cases_by_detection.setdefault(c["detection_id"], []).append(c)
+    finally:
+        conn.close()
+
+    untested_count = total_detections - total_testable
+
+    scored = []
+    scan_errors = 0
+    for d in testable:
+        cases = cases_by_detection.get(d["detection_id"], [])
+        if not cases:
+            continue
+
+        passed_total = 0
+        failing_results = []
+        for case in cases:
+            try:
+                details = evaluate_sigma_rule(d["raw_yaml"] or "", case.get("sample_event") or "")
+                fired = bool(details.get("matched"))
+            except SigmaEvaluationError as exc:
+                details = {"failure_reasons": [str(exc)]}
+                fired = False
+
+            expected_fire = case.get("sample_type") == "positive"
+            passed = (fired == expected_fire)
+            passed_total += int(passed)
+
+            if not passed and len(failing_results) < 3:
+                failing_results.append({
+                    "attack_name":      case.get("attack_name", ""),
+                    "expected":         "fire" if expected_fire else "no_fire",
+                    "actual":           "fire" if fired else "no_fire",
+                    "failure_reasons":  (details.get("failure_reasons") or [])[:2],
+                })
+
+        ran = len(cases)
+        scored.append({
+            "detection_id":     d["detection_id"],
+            "title":            d["title"],
+            "pass_rate":        round(passed_total / ran * 100, 1) if ran else 0,
+            "ran":              ran,
+            "passed":           passed_total,
+            "failed":           ran - passed_total,
+            "failing_results":  failing_results,
+        })
+
+    scored.sort(key=lambda x: x["pass_rate"])
+    worst = scored[: max(1, req.worst_n)]
+
+    fleet_pass_rate = (
+        round(sum(s["pass_rate"] for s in scored) / len(scored), 1) if scored else 0
+    )
+
+    if not worst:
+        return {
+            "fleet_pass_rate":  fleet_pass_rate,
+            "total_detections": total_detections,
+            "testable":         total_testable,
+            "scanned":          len(testable),
+            "untested":         untested_count,
+            "scan_errors":      scan_errors,
+            "worst_rules":      [],
+            "message":          "No testable detections found — generate test cases first.",
+        }
+
+    # Build one batched prompt covering all N worst rules, so this is a
+    # single AI call regardless of fleet size.
+    rules_block = "\n\n".join([
+        f"#{i+1} — Detection {w['detection_id']}: {w['title']}\n"
+        f"  Pass rate: {w['pass_rate']}% ({w['passed']}/{w['ran']})\n"
+        f"  Sample failures: " + "; ".join([
+            f"{fr.get('attack_name', '')} expected {fr.get('expected')} got {fr.get('actual')}"
+            + (f" ({', '.join(fr.get('failure_reasons', [])[:2])})" if fr.get("failure_reasons") else "")
+            for fr in w["failing_results"]
+        ]) or "  Sample failures: none captured"
+        for i, w in enumerate(worst)
+    ])
+
+    prompt = f"""You are a senior detection engineer triaging the worst-performing rules in a SOC's detection fleet.
+
+Fleet summary:
+- Total detections in platform : {total_detections}
+- Testable (have rule + cases) : {len(testable)}
+- Untested (no cases yet)      : {untested_count}
+- Fleet average pass rate      : {fleet_pass_rate}%
+
+Below are the {len(worst)} worst-performing testable detections, ranked from worst to best:
+
+{rules_block}
+
+Return ONLY a JSON object, no extra text:
+{{
+  "fleet_assessment": "2-3 sentence summary of overall fleet health and the biggest risk pattern across these failures",
+  "triage": [
+    {{
+      "detection_id": {worst[0]['detection_id']},
+      "one_line_diagnosis": "short root-cause guess for this specific rule's failures",
+      "priority": "critical|high|medium",
+      "recommended_action": "tune_rule|review_manually|retire_rule"
+    }}
+  ],
+  "common_pattern": "if multiple rules share a similar root cause, describe it here, else say 'No shared pattern detected'"
+}}
+
+The "triage" array must contain exactly {len(worst)} objects, one per detection listed above, in the same order."""
+
+    raw = ask_claude(
+        prompt,
+        system="You are a senior detection engineer. Return only valid JSON, no explanation before or after. Keep each one_line_diagnosis genuinely short (one sentence) so the full batch fits comfortably within the token budget.",
+        max_tokens=4000
+    )
+    try:
+        ai_data = parse_json(raw)
+    except Exception as e:
+        raise HTTPException(500, f"Parse error: {str(e)}")
+
+    triage_by_id = {t.get("detection_id"): t for t in ai_data.get("triage", [])}
+
+    worst_rules = []
+    for w in worst:
+        t = triage_by_id.get(w["detection_id"], {})
+        worst_rules.append({
+            "detection_id":        w["detection_id"],
+            "title":               w["title"],
+            "pass_rate":           w["pass_rate"],
+            "ran":                 w["ran"],
+            "passed":              w["passed"],
+            "one_line_diagnosis":  t.get("one_line_diagnosis", "No diagnosis returned"),
+            "priority":            t.get("priority", "medium"),
+            "recommended_action":  t.get("recommended_action", "review_manually"),
+        })
+
+    return {
+        "fleet_pass_rate":   fleet_pass_rate,
+        "total_detections":  total_detections,
+        "testable":          total_testable,
+        "scanned":           len(testable),
+        "untested":          untested_count,
+        "scan_errors":       scan_errors,
+        "fleet_assessment":  ai_data.get("fleet_assessment", ""),
+        "common_pattern":    ai_data.get("common_pattern", ""),
+        "worst_rules":       worst_rules,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
