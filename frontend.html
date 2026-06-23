@@ -555,6 +555,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <div><div class="page-title">Detections</div><div class="page-subtitle">Manage all detection rules</div></div>
     <div class="page-actions">
       <button class="btn btn-ghost" onclick="exportSigma()">↓ Export Sigma</button>
+      <button class="btn btn-ghost" onclick="window.open('/api/wazuh/import-compare/report','_blank')">↻ Import &amp; Compare</button>
       <button class="btn btn-accent" onclick="openAddDetection()">+ New Detection</button>
     </div>
   </div>
@@ -1611,7 +1612,6 @@ function closeResearchModal() { document.getElementById('research-modal').classL
 document.getElementById('add-modal').addEventListener('click', function(e){if(e.target===this)closeModal();});
 document.getElementById('telem-modal').addEventListener('click', function(e){if(e.target===this)closeTelemModal();});
 document.getElementById('research-modal').addEventListener('click', function(e){if(e.target===this)closeResearchModal();});
-
 
 // ═══════════════════════════════════════════════
 //  TEST RUNNER

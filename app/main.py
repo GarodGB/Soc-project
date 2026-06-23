@@ -12,7 +12,7 @@ except UnicodeDecodeError:
     # If the .env file uses a different encoding (e.g. UTF-16), skip loading it.
     pass
 
-from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai
+from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai, wazuh
 
 app = FastAPI(
     title="ABSEGA Detection Platform",
@@ -36,6 +36,7 @@ app.include_router(mitre.router,       prefix="/api/mitre",      tags=["MITRE AT
 app.include_router(validation.router,  prefix="/api/validation", tags=["Validation"])
 app.include_router(atomic.router,      prefix="/api/atomic",     tags=["Atomic Red Team"])
 app.include_router(ai.router,          prefix="/api/ai",         tags=["AI Features"])
+app.include_router(wazuh.router,       prefix="/api/wazuh",      tags=["Wazuh"])
 
 # Serve the frontend HTML files from the project root
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..")
