@@ -811,7 +811,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <button class="drawer-close" onclick="closeDrawer()">×</button>
   </div>
   <div class="drawer-body" id="drawer-body"></div>
-  <div class="drawer-footer">
+ <div class="drawer-footer" id="drawer-footer"></div>
+  <div class="drawer-actions">
     <button class="btn btn-blue" id="drawer-validate-btn">✦ Validate</button>
     <button class="btn btn-ghost" id="drawer-edit-btn">Edit Rule</button>
     <button class="btn btn-danger" id="drawer-delete-btn">Delete</button>
@@ -1226,29 +1227,39 @@ function openDetection(id) {
 function closeDrawer() {
   document.getElementById('drawer-overlay').classList.remove('open');
   document.getElementById('det-drawer').classList.remove('open');
+  document.getElementById('drawer-footer').style.display = '';
 }
-
+// ═══════════════════════════════════════════════════════════════
+// REPLACE your renderTelemetry function with this one,
+// AND add the openTelemDetails function right after copyTelemLog
+// ═══════════════════════════════════════════════════════════════
+ 
+// ── STEP 1: Replace renderTelemetry ─────────────────────────
+// Find "function renderTelemetry(data) {" and replace the ENTIRE
+// function (up to but not including "function copyTelemLog")
+// with this:
+ 
 function renderTelemetry(data) {
   const grid = document.getElementById('telem-grid');
   if (data.length === 0) { grid.innerHTML = '<div style="color:var(--text3);font-family:var(--mono);font-size:12px">No telemetry sources yet. Add your first source using the + Add Source button.</div>'; return; }
   grid.innerHTML = data.map(t => {
     const safeLog = (t.sample_log||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const hasDetails = t.details && t.details.critical_event_ids;
+    const detVal = t.details?.detection_value || '';
+    const detColor = detVal==='critical'?'#dc2626':detVal==='high'?'#ea580c':detVal==='medium'?'#ca8a04':'#16a34a';
     return `
-    <div class="telem-card ${t.status}">
+    <div class="telem-card ${t.status}" style="cursor:${hasDetails?'pointer':'default'}" ${hasDetails?`onclick="openTelemDetails(${t.id})"`:''}> 
       <div class="telem-name">${t.name}</div>
       <div class="telem-source">${t.platform||''}</div>
       <div class="telem-meta">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${t.event_rate||'N/A'}</span>
         <span class="status-pill sp-${t.status==='healthy'?'active':t.status==='degraded'?'testing':'disabled'}">${t.status}</span>
       </div>
-      <div style="margin-top:8px;font-size:11px;color:var(--text3)">${t.coverage||''}</div>
-      <div style="margin-top:8px;font-size:10px;color:var(--accent4);font-family:var(--mono)">${t.log_fields||''}</div>
-      ${t.sample_log ? `<details style="margin-top:8px">
-        <summary style="font-size:10px;color:var(--text2);cursor:pointer;font-family:var(--mono)">▸ Sample Log</summary>
-        <pre style="margin-top:6px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:10px;font-family:var(--mono);color:var(--text);white-space:pre-wrap;max-height:180px;overflow-y:auto;line-height:1.5">${safeLog}</pre>
-        <button onclick="copyTelemLog(${t.id})" data-log-id="${t.id}" style="margin-top:4px;padding:3px 10px;font-size:10px;font-family:var(--mono);background:linear-gradient(135deg,#e8284a,#8b2be2);color:#fff;border:none;border-radius:4px;cursor:pointer">Copy to Mask</button>
-      </details>` : ''}
-      <div style="margin-top:8px"><button class="btn btn-danger" style="padding:2px 8px;font-size:10px" onclick="deleteTelemetry(${t.id})">Remove</button></div>
+      ${hasDetails ? `<div style="margin-top:8px;font-size:10px;color:${detColor};font-weight:600;text-transform:uppercase;letter-spacing:.5px">${detVal} value · ${t.details.critical_event_ids.length} Event IDs</div>
+      <div style="margin-top:4px;font-size:10px;color:var(--text3)">${t.details.description?.substring(0,100)||''}…</div>
+      <div style="margin-top:8px;text-align:center"><span style="font-size:10px;color:var(--accent);font-family:var(--mono);cursor:pointer">▸ View Full Details</span></div>` :
+      `<div style="margin-top:8px;font-size:11px;color:var(--text3)">${t.coverage||''}</div>`}
+      <div style="margin-top:8px" onclick="event.stopPropagation()"><button class="btn btn-danger" style="padding:2px 8px;font-size:10px" onclick="deleteTelemetry(${t.id})">Remove</button></div>
     </div>`;
   }).join('');
 }
@@ -1261,6 +1272,84 @@ function copyTelemLog(id) {
     if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy to Mask', 1500); }
   }
 }
+// ── STEP 2: Add this function right AFTER copyTelemLog ──────
+// Find "function copyTelemLog" and after its closing }, paste this:
+ 
+function openTelemDetails(id) {
+  const t = ALL_TELEMETRY.find(s => s.id === id);
+  if (!t || !t.details) return;
+  const d = t.details;
+  const detColor = d.detection_value==='critical'?'#dc2626':d.detection_value==='high'?'#ea580c':d.detection_value==='medium'?'#ca8a04':'#16a34a';
+ 
+  let body = '';
+ 
+  // Description
+  body += `<div class="drawer-section">
+    <div class="drawer-section-title">Description</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7">${d.description||''}</div>
+  </div>`;
+ 
+  // Detection value
+  body += `<div class="drawer-section">
+    <div class="drawer-section-title">Detection Value</div>
+    <div style="display:inline-block;padding:4px 12px;border-radius:6px;background:${detColor}22;color:${detColor};font-family:var(--mono);font-size:12px;font-weight:700;text-transform:uppercase;border:1px solid ${detColor}44">${d.detection_value||'unknown'}</div>
+  </div>`;
+ 
+  // Critical Event IDs
+  if (d.critical_event_ids && d.critical_event_ids.length > 0) {
+    body += `<div class="drawer-section">
+      <div class="drawer-section-title">Critical Event IDs (${d.critical_event_ids.length})</div>`;
+    d.critical_event_ids.forEach(evt => {
+      const mitreTags = (evt.mitre||[]).map(m => `<span class="tag mitre" style="font-size:9px;padding:1px 5px">${m}</span>`).join(' ');
+      body += `<div style="background:var(--bg4);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="background:${detColor}22;color:${detColor};font-family:var(--mono);font-size:13px;font-weight:700;padding:2px 8px;border-radius:4px;border:1px solid ${detColor}44">${evt.id}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text)">${evt.name}</span>
+        </div>
+        <div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:6px">${evt.description||''}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${mitreTags}</div>
+      </div>`;
+    });
+    body += `</div>`;
+  }
+ 
+  // Prerequisites
+  if (d.prerequisites && d.prerequisites.length > 0) {
+    body += `<div class="drawer-section">
+      <div class="drawer-section-title">Prerequisites & Configuration</div>`;
+    d.prerequisites.forEach(p => {
+      body += `<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px">
+        <span style="color:var(--warn);flex-shrink:0;font-size:11px">⚠</span>
+        <span style="font-size:11px;color:var(--text2);line-height:1.5">${p}</span>
+      </div>`;
+    });
+    body += `</div>`;
+  }
+ 
+  // Log path & channel
+  body += `<div class="drawer-section">
+    <div class="drawer-section-title">Log Location</div>
+    <div class="detail-row"><div class="detail-key">Log Path</div><div class="detail-val" style="font-size:11px;word-break:break-all">${d.log_path||'N/A'}</div></div>
+    <div class="detail-row"><div class="detail-key">Log Channel</div><div class="detail-val" style="font-size:11px">${d.log_channel||'N/A'}</div></div>
+  </div>`;
+ 
+  // Key fields
+  if (d.key_fields && d.key_fields.length > 0) {
+    body += `<div class="drawer-section">
+      <div class="drawer-section-title">Key Fields</div>
+      <div class="tag-list">${d.key_fields.map(f => `<span class="tag" style="font-size:10px">${f}</span>`).join('')}</div>
+    </div>`;
+  }
+ 
+  // Open the drawer
+  document.getElementById('drawer-title').textContent = t.name;
+  document.getElementById('drawer-sub').textContent = t.platform + ' · ' + (d.critical_event_ids?.length||0) + ' Event IDs';
+  document.getElementById('drawer-body').innerHTML = body;
+  document.getElementById('drawer-footer').style.display = 'none';
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('det-drawer').classList.add('open');
+}
+ 
 let COVERAGE_DATA = []; // populated from /api/mitre/coverage
 
 async function renderAttackMatrix() {

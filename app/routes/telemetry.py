@@ -27,14 +27,23 @@ _FROM_DB = {"active": "healthy", "degraded": "degraded", "inactive": "missing"}
 def _row_to_dict(row) -> dict:
     d = dict(row)
     db_status = d.get("status", "active")
+    import json as _json
+    details_raw = d.get("details", None)
+    details = None
+    if details_raw:
+        try:
+            details = _json.loads(details_raw)
+        except Exception:
+            details = None
     return {
         "id":          d.get("source_id"),
         "name":        d.get("name", ""),
-        "platform":    d.get("category", ""),      # category → platform
-        "description": d.get("coverage", ""),      # coverage → description/coverage
+        "platform":    d.get("category", ""),
+        "description": d.get("coverage", ""),
         "status":      _FROM_DB.get(db_status, "healthy"),
-        "event_rate":  d.get("event_rate", None),  # column may not exist — handled below
+        "event_rate":  d.get("event_rate", None),
         "coverage":    d.get("coverage", ""),
+        "details":     details,
     }
 
 
