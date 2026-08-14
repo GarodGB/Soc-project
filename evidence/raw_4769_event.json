@@ -1,0 +1,64 @@
+{
+  "timestamp": "2026-07-22T14:15:33.412+0000",
+  "rule": {
+    "level": 3,
+    "description": "Windows: A Kerberos service ticket was requested.",
+    "id": "60107",
+    "firedtimes": 1,
+    "mail": false,
+    "groups": ["windows", "windows_security", "authentication_success"]
+  },
+  "agent": {
+    "id": "002",
+    "name": "WIN11",
+    "ip": "192.168.56.20"
+  },
+  "manager": {
+    "name": "wazuh-manager"
+  },
+  "id": "1690035333.1184522",
+  "decoder": {
+    "name": "windows_eventchannel"
+  },
+  "data": {
+    "win": {
+      "system": {
+        "providerName": "Microsoft-Windows-Security-Auditing",
+        "providerGuid": "{54849625-5478-4994-A5BA-3E3B0328C30D}",
+        "eventID": "4769",
+        "version": "0",
+        "level": "0",
+        "task": "14337",
+        "opcode": "0",
+        "channel": "Security",
+        "computer": "DC01.absega.local",
+        "eventRecordID": "884412",
+        "keywords": "0x8020000000000000",
+        "systemTime": "2026-07-22T14:15:33.4055621Z"
+      },
+      "eventdata": {
+        "targetUserName": "administrator@ABSEGA.LOCAL",
+        "targetDomainName": "ABSEGA.LOCAL",
+        "serviceName": "svc_sql",
+        "serviceSid": "S-1-5-21-3623811015-3361044348-30300820-1147",
+        "ticketOptions": "0x40810000",
+        "ticketEncryptionType": "0x17",
+        "ipAddress": "::ffff:192.168.56.20",
+        "ipPort": "51544",
+        "status": "0x0",
+        "logonGuid": "{00000000-0000-0000-0000-000000000000}",
+        "transmittedServices": "-"
+      }
+    }
+  },
+  "location": "EventChannel",
+  "_absega_evidence": {
+    "note": "Untouched raw Wazuh event. Presented to the evaluator without normalization.",
+    "run_correlation": "attach the RunId + StartUtc/StopUtc window from the attack script",
+    "canonical_mapping_under_test": {
+      "source_field": "data.win.eventdata.ticketOptions",
+      "canonical_field": "ticket_options",
+      "value": "0x40810000"
+    }
+  }
+}

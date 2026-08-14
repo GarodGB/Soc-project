@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-detection_platform}
+      POSTGRES_USER: ${DB_USER:-socapp}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pgdata_pulltest:/var/lib/postgresql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed_data.sql:/docker-entrypoint-initdb.d/02_seed_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-socapp} -d ${DB_NAME:-detection_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: mikee101/soc-project-app:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8001:8000"  # different host port so it can run alongside your dev setup
+
+volumes:
+  pgdata_pulltest:

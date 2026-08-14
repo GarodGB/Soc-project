@@ -1,0 +1,71 @@
+{
+  "timestamp": "2026-07-22T21:03:44.706+0000",
+  "rule": {
+    "level": 12,
+    "description": "New Windows Service Created to start from windows root path. Suspicious event as the binary may have been dropped using Windows Admin Shares.",
+    "id": "92650",
+    "mitre": {
+      "id": [
+        "T1021.002",
+        "T1569.002"
+      ],
+      "tactic": [
+        "Lateral Movement",
+        "Execution"
+      ],
+      "technique": [
+        "SMB/Windows Admin Shares",
+        "Service Execution"
+      ]
+    },
+    "firedtimes": 1,
+    "mail": true,
+    "groups": [
+      "win_evt_channel",
+      "windows"
+    ]
+  },
+  "agent": {
+    "id": "002",
+    "name": "WIN11",
+    "ip": "10.10.10.11"
+  },
+  "manager": {
+    "name": "Ubuntu-Wazuh"
+  },
+  "id": "1784754224.23155745",
+  "decoder": {
+    "name": "windows_eventchannel"
+  },
+  "data": {
+    "win": {
+      "system": {
+        "providerName": "Service Control Manager",
+        "providerGuid": "{555908d1-a6d7-4695-8e1e-26931d2012f4}",
+        "eventSourceName": "Service Control Manager",
+        "eventID": "7045",
+        "version": "0",
+        "level": "4",
+        "task": "0",
+        "opcode": "0",
+        "keywords": "0x8080000000000000",
+        "systemTime": "2026-07-22T21:03:46.1820339Z",
+        "eventRecordID": "3586",
+        "processID": "836",
+        "threadID": "9632",
+        "channel": "System",
+        "computer": "WIN11.absega.local",
+        "severityValue": "INFORMATION",
+        "message": "\"A service was installed in the system.\r\n\r\nService Name:  PSEXESVC\r\nService File Name:  %SystemRoot%\\PSEXESVC.exe\r\nService Type:  user mode service\r\nService Start Type:  demand start\r\nService Account:  LocalSystem\""
+      },
+      "eventdata": {
+        "serviceName": "PSEXESVC",
+        "imagePath": "%SystemRoot%\\\\PSEXESVC.exe",
+        "serviceType": "user mode service",
+        "startType": "demand start",
+        "accountName": "LocalSystem"
+      }
+    }
+  },
+  "location": "EventChannel"
+}

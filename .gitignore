@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.db
+*.db_Zone.Identifier
+*.db.pre_merge_backup
+*.bak
+.vscode/
+.idea/
+.pytest_cache/
+.claude/
+dvwa_report_*.json

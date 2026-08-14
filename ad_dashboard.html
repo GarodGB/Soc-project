@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ABSEGA · AD Detection Coverage</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#121722; --panel2:#161c28; --line:#232b3a; --line2:#2d3646;
+    --ink:#e7edf6; --muted:#93a0b4; --faint:#66728a;
+    --brand:#e8284a;
+    --ok:#3fb950; --waz:#e0a12c; --sig:#4a9eff; --miss:#f85149; --none:#6b7688; --block:#a371f7;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --ui:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --r:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);-webkit-font-smoothing:antialiased}
+  a{color:var(--sig)}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+
+  /* header */
+  header.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--brand),#7d1027);
+    display:grid;place-items:center;font-weight:800;color:#fff;font-size:15px;letter-spacing:.5px;box-shadow:0 0 0 1px #ffffff14 inset}
+  .brand h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px}
+  .brand p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+  .btn{border:1px solid var(--line2);background:var(--panel2);color:var(--ink);font:inherit;font-size:13px;
+    padding:9px 14px;border-radius:9px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+  .btn:hover{border-color:var(--brand);color:#fff}
+  .btn:focus-visible{outline:2px solid var(--sig);outline-offset:2px}
+
+  /* hero coverage */
+  .hero{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:20px}
+  .hero-grid{display:grid;grid-template-columns:minmax(200px,300px) 1fr;gap:26px;align-items:center}
+  @media(max-width:720px){.hero-grid{grid-template-columns:1fr;gap:18px}}
+  .cov-num{font-size:60px;line-height:1;font-weight:800;letter-spacing:-1.5px}
+  .cov-num small{font-size:24px;color:var(--muted);font-weight:700}
+  .cov-label{font-size:13px;color:var(--muted);margin-top:8px;max-width:260px}
+  .cov-sub{font-size:12px;color:var(--faint);margin-top:6px}
+  /* signature: one segmented coverage bar */
+  .bar{height:38px;width:100%;border-radius:10px;overflow:hidden;display:flex;background:var(--panel2);border:1px solid var(--line)}
+  .bar span{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0b0e14;
+    min-width:0;transition:flex-grow .5s ease;white-space:nowrap;overflow:hidden}
+  .bar .s-ok{background:var(--ok)} .bar .s-waz{background:var(--waz)} .bar .s-sig{background:var(--sig)}
+  .bar .s-miss{background:var(--miss);color:#fff}
+  .barkey{display:flex;flex-wrap:wrap;gap:16px;margin-top:14px;font-size:12px;color:var(--muted)}
+  .barkey b{color:var(--ink);font-weight:600}
+  .dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:middle}
+
+  /* kpi tiles */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px}
+  @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .n{font-size:30px;font-weight:800;line-height:1}
+  .kpi .t{font-size:12px;color:var(--muted);margin-top:6px}
+  .kpi .sub{font-size:11px;color:var(--faint);margin-top:3px}
+  .kpi.ok .n{color:var(--ok)} .kpi.waz .n{color:var(--waz)} .kpi.sig .n{color:var(--sig)}
+  .kpi.miss .n{color:var(--miss)} .kpi.none .n{color:var(--none)}
+
+  /* explainer */
+  details.explain{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin-bottom:22px;overflow:hidden}
+  details.explain>summary{list-style:none;cursor:pointer;padding:14px 18px;font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:10px}
+  details.explain>summary::-webkit-details-marker{display:none}
+  details.explain>summary .chev{margin-left:auto;color:var(--muted);transition:transform .2s}
+  details.explain[open]>summary .chev{transform:rotate(180deg)}
+  .exp-body{padding:4px 18px 18px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(max-width:640px){.exp-body{grid-template-columns:1fr}}
+  .exp{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel2)}
+  .exp h4{margin:0 0 4px;font-size:13px;display:flex;align-items:center;gap:8px}
+  .exp p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+
+  /* controls */
+  .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tab{border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;font-size:12.5px;
+    padding:7px 13px;border-radius:20px;cursor:pointer}
+  .tab[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
+  .tab:focus-visible{outline:2px solid var(--sig);outline-offset:2px}
+  .search{margin-left:auto;flex:1;min-width:180px;max-width:340px}
+  .search input{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font:inherit;font-size:13px;padding:9px 12px;border-radius:9px}
+  .search input:focus{outline:none;border-color:var(--brand)}
+
+  /* list */
+  .list{display:flex;flex-direction:column;gap:8px}
+  .row{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+    display:grid;grid-template-columns:1fr 118px 118px 150px;gap:14px;align-items:center}
+  .row.head{background:transparent;border:none;padding:0 16px;color:var(--faint);font-size:11px;
+    text-transform:uppercase;letter-spacing:.6px}
+  @media(max-width:780px){
+    .row{grid-template-columns:1fr 1fr;gap:10px}
+    .row.head{display:none}
+    .cell-attack{grid-column:1 / -1}
+  }
+  .cell-attack .name{font-size:14px;font-weight:650}
+  .cell-attack .meta{font-size:11.5px;color:var(--muted);margin-top:3px;font-family:var(--mono)}
+  .engine{border:1px solid var(--line);border-radius:9px;padding:8px 6px;text-align:center;background:var(--panel2)}
+  .engine .lab{font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.5px}
+  .engine .val{font-size:12.5px;font-weight:700;margin-top:3px}
+  .engine.det .val{color:var(--ok)} .engine.miss .val{color:var(--miss)} .engine.na .val{color:var(--none)}
+  .engine .rid{font-size:10px;color:var(--faint);font-family:var(--mono);margin-top:2px}
+  .verdict{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+  .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+  .pill.ok{background:#12351f;color:var(--ok);border:1px solid #1e5c33}
+  .pill.waz{background:#3a2c0e;color:var(--waz);border:1px solid #6b5115}
+  .pill.sig{background:#0e2540;color:var(--sig);border:1px solid #17457c}
+  .pill.miss{background:#3a1414;color:var(--miss);border:1px solid #6e1f1f}
+  .pill.none{background:#1c2230;color:var(--none);border:1px solid #303a4c}
+  .pill.block{background:#241a3a;color:var(--block);border:1px solid #47327a}
+  .action{font-size:11.5px;color:var(--muted);line-height:1.4}
+
+  .empty{text-align:center;color:var(--muted);padding:40px;font-size:14px}
+  footer{margin-top:30px;font-size:11.5px;color:var(--faint);text-align:center}
+  .loading{color:var(--muted);padding:30px;text-align:center}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="mark">AB</div>
+      <div>
+        <h1>AD Detection Coverage</h1>
+        <p>Which of your two tools — Wazuh &amp; Sigma — actually catch each Active Directory attack</p>
+      </div>
+    </div>
+    <button class="btn" id="refresh">↻ Refresh</button>
+  </header>
+
+  <!-- HERO: single coverage number + segmented bar -->
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="cov-num" id="covNum">–<small>%</small></div>
+        <div class="cov-label">of tested attacks are caught by <b>at least one</b> tool.</div>
+        <div class="cov-sub" id="covSub">Loading…</div>
+      </div>
+      <div>
+        <div class="bar" id="bar" role="img" aria-label="Detection coverage breakdown"></div>
+        <div class="barkey">
+          <span><span class="dot" style="background:var(--ok)"></span><b>Both catch it</b> — keep</span>
+          <span><span class="dot" style="background:var(--waz)"></span><b>Wazuh only</b> — write Sigma</span>
+          <span><span class="dot" style="background:var(--sig)"></span><b>Sigma only</b> — deploy Wazuh</span>
+          <span><span class="dot" style="background:var(--miss)"></span><b>Neither</b> — blind spot</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPIs -->
+  <section class="kpis" id="kpis"></section>
+
+  <!-- Plain-language explainer -->
+  <details class="explain" open>
+    <summary>What am I looking at? <span class="chev">▾</span></summary>
+    <div class="exp-body">
+      <div class="exp"><h4><span class="dot" style="background:var(--ok)"></span>Both catch it (Verified)</h4>
+        <p>You ran a real attack, and <b>both</b> Wazuh and Sigma fired an alert on the same event. Coverage is solid — keep both rules.</p></div>
+      <div class="exp"><h4><span class="dot" style="background:var(--waz)"></span>Wazuh only</h4>
+        <p>Wazuh caught it but Sigma didn't. Sigma has a blind spot for this attack — the fix is to write or tune a Sigma rule.</p></div>
+      <div class="exp"><h4><span class="dot" style="background:var(--sig)"></span>Sigma only</h4>
+        <p>Sigma caught it but Wazuh didn't. Wazuh is your live SIEM, so this is the more urgent gap — deploy a Wazuh rule.</p></div>
+      <div class="exp"><h4><span class="dot" style="background:var(--miss)"></span>Neither (Blind spot)</h4>
+        <p>The attack happened and reached the logs, but <b>no tool alerted</b>. Highest priority — build detection for this behaviour.</p></div>
+      <div class="exp"><h4><span class="dot" style="background:var(--none)"></span>Not tested yet</h4>
+        <p>This attack is in the catalog but hasn't been run in the lab, so there's no evidence to judge. Not a gap — just pending.</p></div>
+      <div class="exp"><h4><span class="dot" style="background:var(--block)"></span>Blocked</h4>
+        <p>Can't be tested in this lab because it needs infrastructure that isn't set up (e.g. a Certificate Authority or LAPS).</p></div>
+    </div>
+  </details>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="search"><input id="search" type="search" placeholder="Search attack, MITRE ID, event…" aria-label="Search"></div>
+  </div>
+
+  <!-- List -->
+  <div class="list" id="list"><div class="loading">Loading detection results…</div></div>
+
+  <footer>ABSEGA · Active Directory purple-team validation · every verdict is computed from real lab telemetry, never simulated.</footer>
+</div>
+
+<script src="/auth_guard.js"></script>
+<script>
+const API = window.location.origin.startsWith("http") ? window.location.origin : "http://127.0.0.1:8000";
+
+// map an attack's engine results -> a status bucket
+function classify(a){
+  const w = a.wazuh_result, s = a.sigma_result, v = (a.latest_verdict||"").toUpperCase();
+  const wFired = w === "alert";
+  const sFired = s === "match";
+  const tested = (w && w !== "not_evaluated") || (s && s !== "not_evaluated") || (v && v!=="NOT_EXECUTED");
+  if (a.prerequisite_status === "blocked_by_prerequisite" && !tested) return "blocked";
+  if (!tested || v === "NOT_EXECUTED") return "none";
+  if (wFired && sFired) return "ok";
+  if (wFired && !sFired) return "waz";
+  if (!wFired && sFired) return "sig";
+  return "miss";
+}
+const META = {
+  ok:   {pill:"ok",  label:"Both catch it",  action:"Both tools alert on this — keep both rules."},
+  waz:  {pill:"waz", label:"Wazuh only",     action:"Sigma blind spot — write a Sigma rule for this."},
+  sig:  {pill:"sig", label:"Sigma only",     action:"Wazuh blind spot — deploy a Wazuh rule for this."},
+  miss: {pill:"miss",label:"Neither",        action:"Nobody alerts — highest-priority gap, build detection."},
+  none: {pill:"none",label:"Not tested",     action:"Run the attack in the lab to get a verdict."},
+  block:{pill:"block",label:"Blocked",       action:"Needs lab infrastructure that isn’t set up yet."}
+};
+const ORDER = ["miss","sig","waz","ok","none","block"]; // gaps first
+
+let ALL = [];
+let TAB = "tested";
+
+function engineCell(kind, fired, notEval, ruleId){
+  if (notEval) return `<div class="engine na"><div class="lab">${kind}</div><div class="val">— n/a</div></div>`;
+  const cls = fired ? "det" : "miss";
+  const txt = fired ? "✓ Detected" : "✗ Missed";
+  const rid = (fired && ruleId) ? `<div class="rid">${kind==="Wazuh"?"rule ":"sigma "}${ruleId}</div>` : "";
+  return `<div class="engine ${cls}"><div class="lab">${kind}</div><div class="val">${txt}</div>${rid}</div>`;
+}
+
+function render(){
+  const q = (document.getElementById("search").value||"").toLowerCase();
+  let rows = ALL.map(a => ({a, st: classify(a)}));
+
+  // tab filter
+  rows = rows.filter(({st}) => {
+    if (TAB === "all") return true;
+    if (TAB === "tested") return st !== "none" && st !== "block";
+    if (TAB === "gaps") return st === "miss" || st === "waz" || st === "sig";
+    return st === TAB;
+  });
+  // search
+  if (q) rows = rows.filter(({a}) =>
+    [a.display_name,a.technique_id,a.attack_category, (a.expected_event_ids||[]).join(" ")]
+      .join(" ").toLowerCase().includes(q));
+  // sort: gaps first, then by name
+  rows.sort((x,y)=> ORDER.indexOf(x.st)-ORDER.indexOf(y.st) || (x.a.display_name||"").localeCompare(y.a.display_name||""));
+
+  const list = document.getElementById("list");
+  if (!rows.length){ list.innerHTML = `<div class="empty">Nothing here yet. Try another tab or clear the search.</div>`; return; }
+
+  const head = `<div class="row head"><div>Attack</div><div style="text-align:center">Wazuh (SIEM)</div><div style="text-align:center">Sigma</div><div>Verdict &amp; next step</div></div>`;
+  list.innerHTML = head + rows.map(({a,st})=>{
+    const m = META[st];
+    const wNA = !(a.wazuh_result && a.wazuh_result!=="not_evaluated");
+    const sNA = !(a.sigma_result && a.sigma_result!=="not_evaluated");
+    const wFired = a.wazuh_result==="alert", sFired = a.sigma_result==="match";
+    const eid = (a.expected_event_ids||[]).slice(0,3).join(", ");
+    return `<div class="row">
+      <div class="cell-attack">
+        <div class="name">${esc(a.display_name||a.attack_key)}</div>
+        <div class="meta">${esc(a.technique_id||"")}${a.attack_category?" · "+esc(a.attack_category):""}${eid?" · event "+esc(eid):""}</div>
+      </div>
+      ${engineCell("Wazuh", wFired, wNA, a.wazuh_rule_id)}
+      ${engineCell("Sigma", sFired, sNA, a.sigma_detection_id)}
+      <div class="verdict">
+        <span class="pill ${m.pill}">${m.label}</span>
+        <span class="action">${m.action}</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderStats(){
+  const buckets = {ok:0,waz:0,sig:0,miss:0,none:0,block:0};
+  ALL.forEach(a => buckets[classify(a)]++);
+  const tested = buckets.ok+buckets.waz+buckets.sig+buckets.miss;
+  const caught = buckets.ok+buckets.waz+buckets.sig;
+  const cov = tested ? Math.round(caught/tested*100) : 0;
+
+  document.getElementById("covNum").innerHTML = `${cov}<small>%</small>`;
+  document.getElementById("covSub").textContent =
+    `${tested} attacks tested · ${caught} caught by a tool · ${buckets.miss} blind spot${buckets.miss===1?"":"s"} · ${buckets.none} not tested yet`;
+
+  // segmented bar
+  const bar = document.getElementById("bar");
+  const seg = [["s-ok",buckets.ok],["s-waz",buckets.waz],["s-sig",buckets.sig],["s-miss",buckets.miss]];
+  bar.innerHTML = seg.filter(([,n])=>n>0).map(([c,n])=>
+    `<span class="${c}" style="flex:${n} 1 0" title="${n}">${n}</span>`).join("") || `<span style="flex:1;color:var(--muted)">no tested attacks yet</span>`;
+
+  // kpis
+  const kpis = [
+    {c:"", n:tested, t:"Attacks tested", sub:"real lab telemetry"},
+    {c:"ok", n:buckets.ok, t:"Both tools catch", sub:"verified — keep"},
+    {c:"waz", n:buckets.waz, t:"Wazuh-only", sub:"write a Sigma rule"},
+    {c:"sig", n:buckets.sig, t:"Sigma-only", sub:"deploy a Wazuh rule"},
+    {c:"miss", n:buckets.miss, t:"Blind spots", sub:"neither tool alerts"},
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(k=>
+    `<div class="kpi ${k.c}"><div class="n">${k.n}</div><div class="t">${k.t}</div><div class="sub">${k.sub}</div></div>`).join("");
+
+  // tabs
+  const tabs = [
+    ["tested",`Tested (${tested})`],
+    ["gaps",`Gaps (${buckets.waz+buckets.sig+buckets.miss})`],
+    ["ok",`Verified (${buckets.ok})`],
+    ["miss",`Blind spots (${buckets.miss})`],
+    ["none",`Not tested (${buckets.none})`],
+    ["block",`Blocked (${buckets.block})`],
+    ["all",`All (${ALL.length})`],
+  ];
+  document.getElementById("tabs").innerHTML = tabs.map(([id,lab])=>
+    `<button class="tab" role="tab" data-tab="${id}" aria-selected="${id===TAB}">${lab}</button>`).join("");
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+    TAB=b.dataset.tab;
+    document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected", x.dataset.tab===TAB));
+    render();
+  });
+}
+
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+async function load(){
+  document.getElementById("list").innerHTML = `<div class="loading">Loading detection results…</div>`;
+  try{
+    const r = await fetch(`${API}/api/ad-catalog/attacks?include_legacy=true`);
+    const j = await r.json();
+    ALL = (j.attacks || j || []);
+    renderStats();
+    render();
+  }catch(e){
+    document.getElementById("list").innerHTML =
+      `<div class="empty">Couldn’t reach the platform.<br>Start it with <code>python run.py</code>, then open this page at <b>${API}/ad_dashboard.html</b></div>`;
+  }
+}
+document.getElementById("refresh").onclick = load;
+document.getElementById("search").oninput = render;
+load();
+</script>
+</body>
+</html>

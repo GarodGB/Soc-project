@@ -1,0 +1,18 @@
+comparison_id,run_id,behavior_name,technique_id,wazuh_rule_id,detection_id,detection_title,total_score,static_verdict,wazuh_fired,sigma_matched,behavioral_verdict,tuning_notes,compared_at
+17,RUN-T1558-003-20260722-185353,Kerberoasting service ticket request,T1558.003,60107,196,Suspicious Kerberos RC4 Ticket Encryption,0.2286,NO_CONTENT_OVERLAP,,,,,2026-07-22T15:53:53.190491+00:00
+16,RUN-T1558-003-20260722-185348,Kerberoasting service ticket request,T1558.003,60107,196,Suspicious Kerberos RC4 Ticket Encryption,0.2286,NO_CONTENT_OVERLAP,,,,,2026-07-22T15:53:48.757172+00:00
+15,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.4,PARTIAL_OVERLAP,1,1,both_fired_on_same_event,,2026-07-21T13:23:14.316066+00:00
+14,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.4,PARTIAL_OVERLAP,,,,,2026-07-21T13:17:44.386788+00:00
+13,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,,,,,2026-07-21T13:14:12.859627+00:00
+12,RUN-T1059-001-20260721-140107,Encoded PowerShell execution,T1059.001,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,1,1,both_fired_on_same_event,,2026-07-21T11:06:36.321669+00:00
+11,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,1,1,both_fired_on_same_event,,2026-07-21T11:03:57.875225+00:00
+10,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,1,1,both_fired_on_same_event,,2026-07-21T10:55:35.426486+00:00
+9,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,1,1,both_fired_on_same_event,,2026-07-21T10:42:57.493292+00:00
+8,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,,,,,2026-07-21T10:36:16.590977+00:00
+7,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,,,,,2026-07-21T10:30:28.197776+00:00
+6,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.45,distinct,,,,,2026-07-21T10:13:44.618801+00:00
+5,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.5333,partial_overlap,1,1,both_fired_on_same_event,,2026-07-21T00:14:27.476168+00:00
+4,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.5333,partial_overlap,1,0,wazuh_only_on_event,,2026-07-20T23:48:59.270588+00:00
+3,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.5333,partial_overlap,1,0,wazuh_only_on_event,,2026-07-20T23:48:33.164170+00:00
+2,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.5333,partial_overlap,1,0,wazuh_only_on_event,,2026-07-20T23:48:26.512744+00:00
+1,,,,92057,1475,Suspicious Encoded PowerShell Command Line,0.5333,partial_overlap,,,,,2026-07-20T23:23:28.757160+00:00

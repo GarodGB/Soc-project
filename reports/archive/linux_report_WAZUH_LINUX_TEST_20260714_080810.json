@@ -1,0 +1,357 @@
+{
+  "run_id": "WAZUH_LINUX_TEST_20260714_080810",
+  "target": "192.168.36.128",
+  "start_time": "2026-07-14T08:08:12Z",
+  "attacks_total": 15,
+  "attacks_succeeded": 6,
+  "wazuh_linux_alerts": 25,
+  "results": [
+    {
+      "name": "SSH Brute Force",
+      "scenario_id": "linux_001",
+      "success": true,
+      "description": "Generated failed authentication attempts to trigger Wazuh brute force rules.",
+      "details": {
+        "attempts": 5
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Failed Auth Flood",
+      "scenario_id": "linux_002",
+      "success": true,
+      "description": "Generated multiple failed auth attempts.",
+      "details": {
+        "count": 5
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Cron Job Persistence",
+      "scenario_id": "linux_003",
+      "success": false,
+      "description": "Created malicious cron job for persistence.",
+      "details": {
+        "cron_file": {
+          "cmd": "cat /opt/attack_test/fake_cron/malicious",
+          "stdout": "",
+          "stderr": "cat: /opt/attack_test/fake_cron/malicious: No such file or directory",
+          "status": 1
+        },
+        "crontab": {
+          "cmd": "crontab -l",
+          "stdout": "# ATTACK_TEST_WAZUH_LINUX_TEST_20260712_171013\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260712_172857\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260712_173748\n# ATTACK_TEST_WAZUH_LINUX_TEST_20260714_080810",
+          "stderr": "",
+          "status": 0
+        }
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "SUID Binary Abuse",
+      "scenario_id": "linux_004",
+      "success": false,
+      "description": "Created SUID binary to escalate privileges.",
+      "details": {
+        "binary": ""
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Unauthorized User Creation",
+      "scenario_id": "linux_005",
+      "success": false,
+      "description": "Created unauthorized user with sudo privileges.",
+      "details": {
+        "user": "hacker_080810",
+        "passwd_entry": ""
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "SSH Key Injection",
+      "scenario_id": "linux_006",
+      "success": true,
+      "description": "Injected unauthorized SSH key into authorized_keys.",
+      "details": {
+        "key_added": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAttackKeyWAZUH_LINUX_TEST_20260714_080810 attacker@evil.com"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Systemd Backdoor",
+      "scenario_id": "linux_007",
+      "success": false,
+      "description": "Created malicious systemd service file.",
+      "details": {
+        "service_file": "/opt/attack_test/fake_systemd/backdoor.service"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Bashrc Persistence",
+      "scenario_id": "linux_008",
+      "success": true,
+      "description": "Injected malicious alias into .bashrc for persistence.",
+      "details": {
+        "tail": "export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin\nalias sqlmap=\"python3 ~/tools/sqlmap/sqlmap.py\"\n# ATTACK_WAZUH_LINUX_TEST_20260714_080810"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Log Tampering",
+      "scenario_id": "linux_009",
+      "success": false,
+      "description": "Tampered with log files and cleared bash history.",
+      "details": {
+        "log_after_tamper": "",
+        "history_cleared": true
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Credential Dumping",
+      "scenario_id": "linux_010",
+      "success": false,
+      "description": "Read /etc/shadow to dump password hashes.",
+      "details": {
+        "users_with_hashes": [],
+        "shadow_lines": 0
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Sudoers Modification",
+      "scenario_id": "linux_011",
+      "success": false,
+      "description": "Modified sudoers to grant unauthorized privileges.",
+      "details": {
+        "sudoers_d": ""
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Hosts File Modification",
+      "scenario_id": "linux_012",
+      "success": false,
+      "description": "Modified /etc/hosts for DNS spoofing.",
+      "details": {
+        "hosts_tail": "ff02::1 ip6-allnodes\nff02::2 ip6-allrouters\ntest change"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Firewall Tampering",
+      "scenario_id": "linux_013",
+      "success": false,
+      "description": "Added firewall rule to open backdoor port 4444.",
+      "details": {
+        "rule_added": ""
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "System Reconnaissance",
+      "scenario_id": "linux_014",
+      "success": true,
+      "description": "Performed system enumeration and reconnaissance.",
+      "details": {
+        "OS info": "Linux wazuh-server 6.17.0-35-generic #35~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue May 26 19:30:42 UTC 2 x86_64 x86_64 x86_64 GNU/Linux",
+        "Current user": "uid=1000(ubuntu) gid=1000(ubuntu) groups=1000(ubuntu),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),114(lpadmin)\nubuntu",
+        "OS release": "PRETTY_NAME=\"Ubuntu 24.04.4 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.4 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"h",
+        "Running processes": "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\nubuntu     12249  100  0.1  22424  4940 ?        R    11:08   0:00 ps aux --sort=-%cpu\nwazuh-i+    1875  2.4 29.0 6171764 114",
+        "Open ports": "Active Internet connections (only servers)\nProto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    \ntcp        0      0 127.0.0.53:53           0.0.0.0:*   ",
+        "SUID files": "/opt/google/chrome/chrome-sandbox\n/snap/core24/1587/usr/bin/chfn\n/snap/core24/1587/usr/bin/chsh\n/snap/core24/1587/usr/bin/gpasswd\n/snap/core24/1587/usr/bin/mount\n/snap/core24/1587/usr/bin/newgrp\n/snap",
+        "Crontab": "# /etc/crontab: system-wide crontab\n# Unlike any other crontab you don't have to run the `crontab'\n# command to install the new version when you edit this file\n# and files in /etc/cron.d. These files ",
+        "Home directories": "total 12\ndrwxr-xr-x  3 root   root   4096 Apr 18 15:21 .\ndrwxr-xr-x 23 root   root   4096 Apr 18 16:45 ..\ndrwxr-x--- 23 ubuntu ubuntu 4096 Jul 14 11:08 ubuntu",
+        "Sudo permissions": "FAILED: sudo: a terminal is required to read the password; either use the -S option to read from standard in",
+        "Login history": "ubuntu   tty2         tty2             Tue Jul 14 09:37   still logged in\nubuntu   seat0        login screen     Tue Jul 14 09:37   still logged in\nreboot   system boot  6.17.0-35-generi Tue Jul 14 09"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    },
+    {
+      "name": "Data Exfiltration",
+      "scenario_id": "linux_015",
+      "success": true,
+      "description": "Staged sensitive data for exfiltration.",
+      "details": {
+        "files": {
+          "/etc/passwd": "denied",
+          "/etc/shadow": "denied",
+          "/home/ubuntu/.bash_history": "denied",
+          "/home/ubuntu/.ssh/known_hosts": "denied",
+          "/var/log/auth.log": "denied"
+        },
+        "staged": "-rw-rw-r-- 1 ubuntu ubuntu 29 Jul 14 11:08 /tmp/exfil_WAZUH_LINUX_TEST_20260714_080810.b64"
+      },
+      "wazuh_detected": false,
+      "wazuh_alert_count": 0
+    }
+  ],
+  "detections": [
+    {
+      "rule_id": "100315",
+      "description": "ABSEGA: Data Exfiltration attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:49.924Z"
+    },
+    {
+      "rule_id": "100314",
+      "description": "ABSEGA: System Reconnaissance attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:39.923Z"
+    },
+    {
+      "rule_id": "100313",
+      "description": "ABSEGA: Firewall Tampering attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:39.922Z"
+    },
+    {
+      "rule_id": "100312",
+      "description": "ABSEGA: Hosts File Modification attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:37.922Z"
+    },
+    {
+      "rule_id": "100310",
+      "description": "ABSEGA: Credential Dumping attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:37.921Z"
+    },
+    {
+      "rule_id": "100311",
+      "description": "ABSEGA: Sudoers Modification attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:37.921Z"
+    },
+    {
+      "rule_id": "100308",
+      "description": "ABSEGA: Bashrc Persistence attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:35.921Z"
+    },
+    {
+      "rule_id": "100309",
+      "description": "ABSEGA: Log Tampering attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:35.921Z"
+    },
+    {
+      "rule_id": "100307",
+      "description": "ABSEGA: Systemd Backdoor attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:35.921Z"
+    },
+    {
+      "rule_id": "100306",
+      "description": "ABSEGA: SSH Key Injection attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:33.929Z"
+    },
+    {
+      "rule_id": "100304",
+      "description": "ABSEGA: SUID Binary Abuse attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:33.920Z"
+    },
+    {
+      "rule_id": "100305",
+      "description": "ABSEGA: Unauthorized User Creation attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:33.920Z"
+    },
+    {
+      "rule_id": "100303",
+      "description": "ABSEGA: Cron Job Persistence attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:31.920Z"
+    },
+    {
+      "rule_id": "100302",
+      "description": "ABSEGA: Failed Auth Flood attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:29.918Z"
+    },
+    {
+      "rule_id": "5301",
+      "description": "User missed the password to change UID (user id).",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:27.918Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:25.918Z"
+    },
+    {
+      "rule_id": "5301",
+      "description": "User missed the password to change UID (user id).",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:25.918Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:23.917Z"
+    },
+    {
+      "rule_id": "5301",
+      "description": "User missed the password to change UID (user id).",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:21.917Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:19.916Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:17.916Z"
+    },
+    {
+      "rule_id": "5301",
+      "description": "User missed the password to change UID (user id).",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:17.916Z"
+    },
+    {
+      "rule_id": "5301",
+      "description": "User missed the password to change UID (user id).",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:15.916Z"
+    },
+    {
+      "rule_id": "5503",
+      "description": "PAM: User login failed.",
+      "level": 5,
+      "timestamp": "2026-07-14T08:08:13.915Z"
+    },
+    {
+      "rule_id": "100301",
+      "description": "ABSEGA: SSH Brute Force attack simulation",
+      "level": 3,
+      "timestamp": "2026-07-14T08:08:13.915Z"
+    }
+  ]
+}

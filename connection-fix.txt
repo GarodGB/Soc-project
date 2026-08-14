@@ -1,0 +1,12 @@
+If WSL2 can't reach the Ubuntu VM (ping times out), run these fixes:
+
+=== On WSL2 (Kali) ===
+sudo ip link set eth1 up
+
+=== On the Ubuntu VM ===
+sudo iptables -F
+sudo iptables -P INPUT ACCEPT
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -P OUTPUT ACCEPT
+
+Note: eth1 goes DOWN every time WSL restarts, so you may need to repeat the WSL command after each reboot.
