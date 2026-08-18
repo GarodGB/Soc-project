@@ -44,6 +44,17 @@ class WazuhDraft(BaseModel):
     test_event: str = ""
     expected_match: str = ""
 
+    # Gemini sometimes emits explicit `null` for a text field it considers
+    # "not applicable" (e.g. xml when only a Sigma rule is needed) instead of
+    # "" — with no response_schema enforced on the API call, that's a valid
+    # choice from the model's side, so treat null the same as an empty string
+    # rather than failing the whole draft over it.
+    @field_validator("title", "description", "xml", "test_event", "expected_match",
+                     mode="before")
+    @classmethod
+    def _none_to_empty(cls, value: Any) -> Any:
+        return "" if value is None else value
+
     @field_validator("level")
     @classmethod
     def _level_range(cls, value: int) -> int:
@@ -61,6 +72,12 @@ class SigmaDraft(BaseModel):
     expected_fields: list[str] = Field(default_factory=list)
     false_positives: list[str] = Field(default_factory=list)
     tuning_notes: list[str] = Field(default_factory=list)
+
+    @field_validator("title", "description", "yaml", "logsource_explanation",
+                     mode="before")
+    @classmethod
+    def _none_to_empty(cls, value: Any) -> Any:
+        return "" if value is None else value
 
 
 class TelemetryRecommendation(BaseModel):

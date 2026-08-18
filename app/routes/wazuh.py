@@ -18,7 +18,13 @@ import logging as _logging
 import os
 from urllib.parse import unquote_plus
 from pydantic import BaseModel
-from app.sigma_eval import evaluate_sigma_rule, SigmaEvaluationError
+from app.sigma_eval import (
+    SigmaAggregationUnsupported,
+    SigmaEvaluationError,
+    evaluate_sigma_rule,
+    evaluate_sigma_rule_over_events,
+    has_aggregation_condition,
+)
 import yaml as _yaml
 
 router = APIRouter(dependencies=[Depends(require_read_access)])
@@ -177,24 +183,6 @@ detection:
             - '.php'
     condition: sel_upload_post or sel_php_content or sel_php_access
 level: critical
-""",
-    },
-    {
-        "id": "WEB-BRUTE-001",
-        "title": "Web Login Brute Force Attempt",
-        "severity": "medium",
-        "sigma": """title: Web Login Brute Force Attempt
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    selection:
-        full_log|contains|all:
-            - '/vulnerabilities/brute'
-            - 'Login=Login'
-    condition: selection
-level: medium
 """,
     },
     {
@@ -740,10 +728,31 @@ _WEB_SIGMA_MAP = {
     "cmdi": "WEB-CMDI-001",
     "lfi": "WEB-LFI-001",
     "file-upload": "WEB-UPLOAD-001",
-    "brute-force": "WEB-BRUTE-001",
     "csrf": "WEB-CSRF-001",
 }
 _WEB_SIGMA_BY_ID = {r["id"]: r for r in WEB_ATTACK_RULES}
+
+
+def _saved_sigma_rule_for(conn, surface: str, attack_id: str) -> dict | None:
+    """The most recently saved AI-generated Sigma rule for this attack, if any.
+
+    ``/rule-suggestions/{id}/save-to-platform`` inserts an AI-drafted rule into
+    ``detections`` tagged ``absega.surface.<surface>`` / ``absega.attack.<attack_id>``.
+    Attack replay has to re-evaluate against that rule too — not just the
+    hand-authored WEB_ATTACK_RULES catalog — or a rule a Detection Engineer just
+    approved can never be confirmed to actually detect the attack it was
+    written for, and the verdict never moves off WAZUH_ONLY/NO_DETECTION_IN_EITHER.
+    """
+    row = conn.execute(
+        "SELECT detection_id, raw_yaml FROM detections "
+        "WHERE tags LIKE %s AND tags LIKE %s AND status != 'rejected' "
+        "AND raw_yaml IS NOT NULL AND raw_yaml != '' "
+        "ORDER BY updated_at DESC, detection_id DESC LIMIT 1",
+        (f"%absega.surface.{surface}%", f"%absega.attack.{attack_id}%"),
+    ).fetchone()
+    if not row:
+        return None
+    return {"id": f"detection-{row[0]}", "sigma": row[1]}
 
 # Best-effort MITRE technique labels for the Recent Runs list — not used for
 # any detection logic, purely informational.
@@ -767,9 +776,17 @@ def _persist_validation_result(surface: str, run_id: str, target: str, agent_id:
     ``results`` in place with verdict/sigma_supported/sigma_matched/evidence_count.
 
     Never invented: sigma_matched is only ever set from a real pySigma
-    evaluation of a mapped rule. When no Sigma rule is mapped (always true for
-    Linux today), sigma_supported=False and the verdict is EVALUATOR_UNSUPPORTED
-    rather than a fabricated no-match.
+    evaluation of a mapped rule. "Mapped" means either the hand-authored
+    WEB_ATTACK_RULES catalog (web only) or a rule a Detection Engineer saved
+    via save-to-platform for this surface/attack (see
+    ``_saved_sigma_rule_for`` — this is how a freshly AI-generated rule gets
+    re-evaluated on the next attack replay, and it's Linux's only path to any
+    Sigma coverage at all). When no rule is mapped either way, that is a
+    missing-content gap, not an evaluator limitation — Wazuh's own detection
+    result is still a known fact, so the verdict falls back to WAZUH_ONLY /
+    NO_DETECTION_IN_EITHER like any other real coverage gap. EVALUATOR_UNSUPPORTED
+    is reserved for when a Sigma rule *is* mapped but the local evaluator could
+    not run it against the captured event.
 
     This is best-effort — any failure here must never break the live JSON
     response the frontend already depends on.
@@ -786,26 +803,71 @@ def _persist_validation_result(surface: str, run_id: str, target: str, agent_id:
             sigma_supported = False
             sigma_matched = None
             sigma_rule_ids: list = []
+
+            sigma_id = None
+            sigma_rule = None
             if surface == "web":
                 sigma_id = _WEB_SIGMA_MAP.get(attack_id)
                 sigma_rule = _WEB_SIGMA_BY_ID.get(sigma_id) if sigma_id else None
-                if sigma_rule:
-                    sigma_supported = True
-                    sigma_rule_ids = [sigma_id]
-                    sample_alerts = r.get("sample_alerts") or []
-                    if sample_alerts:
+
+            # A Detection Engineer's saved rule always takes precedence over the
+            # hand-authored catalog — it is the more current, human-approved
+            # content, and it's the only path Linux has to any Sigma coverage.
+            saved_rule = _saved_sigma_rule_for(conn, surface, attack_id)
+            if saved_rule:
+                sigma_id = saved_rule["id"]
+                sigma_rule = saved_rule
+
+            if sigma_rule:
+                sigma_supported = True
+                sigma_rule_ids = [sigma_id]
+                sample_alerts = r.get("sample_alerts") or []
+                if sample_alerts and has_aggregation_condition(sigma_rule["sigma"]):
+                    # A `| count() by ... > N in Tm` rule (brute-force/threshold
+                    # style) can never be satisfied by a single event — it needs
+                    # the whole captured batch, grouped and counted.
+                    events = [
+                        _json.dumps({
+                            "full_log": unquote_plus(alert.get("full_log", "")),
+                            "timestamp": alert.get("timestamp"),
+                        })
+                        for alert in sample_alerts if alert.get("full_log")
+                    ]
+                    try:
+                        outcome = evaluate_sigma_rule_over_events(sigma_rule["sigma"], events)
+                        sigma_matched = bool(outcome.get("matched"))
+                    except (SigmaEvaluationError, SigmaAggregationUnsupported):
+                        sigma_matched = None
+                elif sample_alerts:
+                    # An attack run captures several events (recon, the actual
+                    # modification, verification, ...) and sample_alerts[0] is
+                    # only ever the first one chronologically — not necessarily
+                    # the one that represents the attack. A Sigma rule watching
+                    # this event stream would fire if ANY captured event
+                    # matches, so evaluate against all of them, not just the
+                    # first.
+                    sigma_matched = False
+                    evaluated = False
+                    for alert in sample_alerts:
+                        raw_log = alert.get("full_log", "")
+                        if not raw_log:
+                            continue
+                        sample_event = _json.dumps({"full_log": unquote_plus(raw_log)})
                         try:
-                            raw_log = sample_alerts[0].get("full_log", "")
-                            sample_event = _json.dumps({"full_log": unquote_plus(raw_log)})
                             outcome = evaluate_sigma_rule(sigma_rule["sigma"], sample_event)
-                            sigma_matched = bool(outcome.get("matched"))
                         except SigmaEvaluationError:
-                            sigma_matched = None
-                    else:
-                        sigma_matched = False
+                            continue
+                        evaluated = True
+                        if outcome.get("matched"):
+                            sigma_matched = True
+                            break
+                    if not evaluated:
+                        sigma_matched = None
+                else:
+                    sigma_matched = False
 
             if not sigma_supported:
-                verdict = "WAZUH_ONLY" if wazuh_detected else "EVALUATOR_UNSUPPORTED"
+                verdict = "WAZUH_ONLY" if wazuh_detected else "NO_DETECTION_IN_EITHER"
             elif sigma_matched is None:
                 verdict = "EVALUATOR_UNSUPPORTED"
             elif wazuh_detected and sigma_matched:

@@ -352,6 +352,18 @@ def record_platform_save(*, suggestion_id: int, version_id: int, detection_id: i
     )
 
 
+def delete_platform_saves(suggestion_id: int, conn: sqlite3.Connection) -> list[int]:
+    """Remove this suggestion's save-to-platform join rows and return the
+    detection_ids they pointed at, so the caller can delete those too."""
+    rows = conn.execute(
+        "SELECT detection_id FROM ai_rule_platform_saves WHERE suggestion_id=%s",
+        (suggestion_id,),
+    ).fetchall()
+    detection_ids = [int(r[0]) for r in rows]
+    conn.execute("DELETE FROM ai_rule_platform_saves WHERE suggestion_id=%s", (suggestion_id,))
+    return detection_ids
+
+
 def platform_saves(suggestion_id: int,
                    conn: sqlite3.Connection | None = None) -> list[dict]:
     owns = conn is None

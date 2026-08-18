@@ -396,6 +396,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
   .ov-c4{background:linear-gradient(135deg,rgba(139,43,226,.1),rgba(139,43,226,.02));border:1px solid rgba(139,43,226,.18)}.ov-c4:hover{box-shadow:0 12px 32px rgba(139,43,226,.14)}
   .ov-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.05);overflow:hidden;margin-top:10px}
   .ov-bar-f{height:100%;border-radius:2px;width:0;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+  .ov-pie-panel{background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-top:14px}
+  .ov-pie-title{font-size:11px;font-family:var(--mono);color:var(--text2);text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:6px;margin-bottom:10px}
+  .ov-pie-body{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+  #ov-pie-svg{width:220px;height:150px}
+  .ov-pie-wedge{cursor:pointer;transition:filter .15s}
+  .ov-pie-wedge:hover{filter:brightness(1.18)}
+  .ov-pie-legend{display:flex;flex-direction:column;gap:9px;flex:1;min-width:160px}
+  .ov-pie-row{display:flex;align-items:center;gap:9px;font-size:12px}
+  .ov-pie-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+  .ov-pie-lbl{color:var(--text2);flex:1}
+  .ov-pie-val{font-family:var(--mono);font-weight:700;color:var(--text)}
   .ov-acts{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
   .ov-ab{padding:7px 14px;border-radius:7px;font-size:12px;font-family:var(--mono);font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;border:none}
   .ov-ap{background:linear-gradient(135deg,#e8284a,#8b2be2);color:#fff}.ov-ap:hover{box-shadow:0 0 16px rgba(232,40,74,.4)}
@@ -452,6 +463,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <div style="font-size:38px;font-weight:900;font-family:var(--mono);color:#8b2be2;line-height:1;margin-bottom:3px" id="hero-coverage">0%</div>
         <div style="font-size:11px;color:var(--text2)">Techniques covered</div>
         <div class="ov-bar"><div class="ov-bar-f" id="bar-coverage" style="background:linear-gradient(90deg,#8b2be2,#06b6d4)"></div></div>
+      </div>
+    </div>
+    <div class="ov-pie-panel">
+      <div class="ov-pie-title">
+        <span class="ov-pt-bar"></span>Platform Status — % of target
+      </div>
+      <div class="ov-pie-body">
+        <svg id="ov-pie-svg" viewBox="0 0 220 150" style="flex-shrink:0"></svg>
+        <div class="ov-pie-legend" id="ov-pie-legend"></div>
       </div>
     </div>
     <div class="ov-acts">
@@ -841,6 +861,88 @@ async function explainRule() {
 const API = window.location.origin;
 // OV helpers
 function ovCount(id,target,sfx){if(sfx===undefined)sfx='';var el=document.getElementById(id);if(!el)return;var n=0,step=Math.max(1,Math.ceil(target/50));var iv=setInterval(function(){n=Math.min(n+step,target);el.textContent=n+sfx;if(n>=target)clearInterval(iv);},25);}
+
+// ── Overview 3D pie — same 4 metrics/colors as the stat cards, each slice
+// sized by that metric's own % of its target (mirrors the ov-bar widths). ──
+var OV_PIE = {total:0, active:0, telem:0, coverage:0};
+function ovShade(hex, factor){
+  var r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  r=Math.round(r*factor); g=Math.round(g*factor); b=Math.round(b*factor);
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+function ovEllipsePt(cx,cy,rx,ry,deg){var a=deg*Math.PI/180;return [cx+rx*Math.cos(a), cy+ry*Math.sin(a)];}
+function ovWedgePath(cx,cy,rx,ry,a0,a1){
+  var p0=ovEllipsePt(cx,cy,rx,ry,a0), p1=ovEllipsePt(cx,cy,rx,ry,a1);
+  var large=(a1-a0)>180?1:0;
+  return 'M '+cx+' '+cy+' L '+p0[0]+' '+p0[1]+' A '+rx+' '+ry+' 0 '+large+' 1 '+p1[0]+' '+p1[1]+' Z';
+}
+function svgEl(tag,attrs){var e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function updateOverviewPie(){
+  var svg=document.getElementById('ov-pie-svg'), legend=document.getElementById('ov-pie-legend');
+  if(!svg||!legend) return;
+  var slices=[
+    {label:'Total Detections', val:OV_PIE.total, color:'#e8284a'},
+    {label:'Active Rules',     val:OV_PIE.active, color:'#10b981'},
+    {label:'Telemetry Sources',val:OV_PIE.telem, color:'#f97316'},
+    {label:'ATT&CK Coverage',  val:OV_PIE.coverage, color:'#8b2be2'}
+  ];
+  var sum=slices.reduce(function(s,x){return s+x.val;},0);
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  legend.innerHTML='';
+  var cx=76,cy=54,rx=64,ry=34,depth=18,layerStep=1.5;
+  var defs=svgEl('defs',{});
+  var blur=svgEl('filter',{id:'ov-pie-blur',x:'-50%',y:'-50%',width:'200%',height:'200%'});
+  blur.appendChild(svgEl('feGaussianBlur',{stdDeviation:'4'}));
+  defs.appendChild(blur);
+  var sheen=svgEl('radialGradient',{id:'ov-pie-sheen',cx:'35%',cy:'25%',r:'65%'});
+  var s1=svgEl('stop',{offset:'0%','stop-color':'#ffffff','stop-opacity':'0.22'});
+  var s2=svgEl('stop',{offset:'100%','stop-color':'#ffffff','stop-opacity':'0'});
+  sheen.appendChild(s1); sheen.appendChild(s2);
+  defs.appendChild(sheen);
+  svg.appendChild(defs);
+  if(sum<=0){
+    svg.appendChild(svgEl('ellipse',{cx:cx,cy:cy,rx:rx,ry:ry,fill:'rgba(255,255,255,.04)'}));
+    legend.innerHTML='<div style="font-size:11px;color:var(--text3);font-family:var(--mono)">Loading…</div>';
+    return;
+  }
+  // grounding shadow
+  var shadow=svgEl('ellipse',{cx:cx,cy:cy+depth+5,rx:rx*1.04,ry:ry*0.9,fill:'#000',opacity:'0.4',filter:'url(#ov-pie-blur)'});
+  svg.appendChild(shadow);
+  // cumulative angles, clockwise starting at top (-90deg)
+  var angle=-90, ranges=[];
+  slices.forEach(function(sl){
+    var span=(sl.val/sum)*360;
+    ranges.push({a0:angle, a1:angle+span, color:sl.color});
+    angle+=span;
+  });
+  // stacked side layers (bottom -> top), darkened, for the extruded "drum" look
+  for(var y=depth; y>0; y-=layerStep){
+    var f=0.35 + 0.35*(1-(y/depth)); // darker near the bottom
+    ranges.forEach(function(r){
+      var d=ovWedgePath(cx,cy+y,rx,ry,r.a0,r.a1);
+      svg.appendChild(svgEl('path',{d:d, fill:ovShade(r.color,f)}));
+    });
+  }
+  // top face — full color, separated by thin background-colored strokes
+  ranges.forEach(function(r,i){
+    var d=ovWedgePath(cx,cy,rx,ry,r.a0,r.a1);
+    var path=svgEl('path',{d:d, fill:r.color, stroke:'#0a0a12', 'stroke-width':'1.5', class:'ov-pie-wedge'});
+    var title=svgEl('title',{});
+    title.textContent=slices[i].label+': '+Math.round(slices[i].val)+'%';
+    path.appendChild(title);
+    svg.appendChild(path);
+  });
+  // sheen overlay
+  svg.appendChild(svgEl('ellipse',{cx:cx,cy:cy,rx:rx,ry:ry,fill:'url(#ov-pie-sheen)','pointer-events':'none'}));
+  slices.forEach(function(sl){
+    var row=document.createElement('div');
+    row.className='ov-pie-row';
+    row.innerHTML='<span class="ov-pie-sw" style="background:'+sl.color+'"></span>'+
+      '<span class="ov-pie-lbl">'+sl.label+'</span>'+
+      '<span class="ov-pie-val">'+Math.round(sl.val)+'%</span>';
+    legend.appendChild(row);
+  });
+}
 async function renderOvTable(){
   var tbody=document.getElementById('ov-det-tbody');
   var badge=document.getElementById('ov-det-badge');
@@ -959,7 +1061,7 @@ async function loadTelemetry() {
     document.getElementById('telem-count').textContent = data.length;
     ovCount('hero-telem',data.length,'');
     renderOvTelem(data);
-    setTimeout(function(){var b=document.getElementById('bar-telem');if(b)b.style.width=Math.min(data.length*8,100)+'%';},500);
+    setTimeout(function(){var b=document.getElementById('bar-telem');if(b)b.style.width=Math.min(data.length*8,100)+'%';OV_PIE.telem=Math.min(data.length*8,100);updateOverviewPie();},500);
     renderTelemHealth(data);
   } catch(e) { ALL_TELEMETRY = []; renderTelemetry([]); }
 }
@@ -1038,7 +1140,7 @@ function updateOverviewStats(data) {
   document.getElementById('det-count').textContent = data.length;
   ovCount('hero-total',data.length,'');
   ovCount('hero-active',data.filter(function(d){return d.status==='active'||d.status==='stable';}).length,'');
-  setTimeout(function(){var t=data.length,a=data.filter(function(d){return d.status==='active'||d.status==='stable';}).length;var bt=document.getElementById('bar-total');if(bt)bt.style.width=Math.min(t*8,100)+'%';var ba=document.getElementById('bar-active');if(ba&&t>0)ba.style.width=Math.min((a/t)*100,100)+'%';},300);
+  setTimeout(function(){var t=data.length,a=data.filter(function(d){return d.status==='active'||d.status==='stable';}).length;var bt=document.getElementById('bar-total');if(bt)bt.style.width=Math.min(t*8,100)+'%';var ba=document.getElementById('bar-active');if(ba&&t>0)ba.style.width=Math.min((a/t)*100,100)+'%';OV_PIE.total=Math.min(t*8,100);OV_PIE.active=t>0?Math.min((a/t)*100,100):0;updateOverviewPie();},300);
   renderOvTable();
 }
 
@@ -1468,7 +1570,7 @@ function updateCoverageStats() {
   document.getElementById('cov-gaps').textContent = gaps;
   document.getElementById('cov-score').textContent = score + '%';
   ovCount('hero-coverage',score,'%');
-  setTimeout(function(){var b=document.getElementById('bar-coverage');if(b)b.style.width=score+'%';},700);
+  setTimeout(function(){var b=document.getElementById('bar-coverage');if(b)b.style.width=score+'%';OV_PIE.coverage=score;updateOverviewPie();},700);
 }
 
 function getCoverageState(tid) {

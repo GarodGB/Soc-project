@@ -14,6 +14,7 @@ from __future__ import annotations
 import ipaddress
 import json
 import re
+from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any
 
@@ -104,9 +105,32 @@ def _normalize_condition_syntax(raw_yaml: str) -> str:
     return _QUANT_PAREN_RE.sub(lambda m: f"{m.group(1)} of {m.group(2)}", raw_yaml)
 
 
+def _drop_invalid_tags(raw_yaml: str) -> str:
+    """Drop tags pySigma's strict `namespace.tag` validator would reject
+    outright (e.g. a bare 'ssh' or 'brute-force' instead of 'attack.t1110').
+    Tags are pure metadata — irrelevant to whether the detection logic
+    itself is evaluable — so one malformed tag must not fail the whole rule.
+    """
+    try:
+        doc = yaml.safe_load(raw_yaml)
+    except yaml.YAMLError:
+        return raw_yaml
+    if not isinstance(doc, dict):
+        return raw_yaml
+    tags = doc.get("tags")
+    if not isinstance(tags, list):
+        return raw_yaml
+    valid = [t for t in tags if isinstance(t, str) and "." in t]
+    if len(valid) == len(tags):
+        return raw_yaml
+    doc["tags"] = valid
+    return yaml.safe_dump(doc, sort_keys=False)
+
+
 @lru_cache(maxsize=4096)
 def _parse_rule_cached(raw_yaml: str):
     """Parse + condition-resolve a rule once, then reuse for every sample run."""
+    raw_yaml = _drop_invalid_tags(raw_yaml)
     raw_yaml = _normalize_condition_syntax(raw_yaml)
     try:
         collection = SigmaCollection.from_yaml(raw_yaml)
@@ -162,6 +186,187 @@ def evaluate_sigma_rule(raw_yaml: str, sample_event: str) -> dict:
         "failure_reasons": failure_reasons[:8],
         "event_fields": sorted(k for k in event if not k.startswith("__"))[:80],
         "engine": "pysigma",
+    }
+
+
+# ── Aggregation (threshold/frequency) conditions ────────────────────────────
+#
+# Sigma's `<selection> | count() [by <field>] <op> <threshold> [in <window>]`
+# syntax (used for brute-force/threshold rules) is not a per-event boolean
+# check — it needs the *whole batch* of captured events for one attack run,
+# grouped and counted. pySigma's own condition parser refuses this syntax
+# outright ("pipe syntax ... deprecated"), so it's handled separately here:
+# the boolean part left of `|` is evaluated per-event with the exact same
+# machinery as evaluate_sigma_rule (by re-parsing the rule with its condition
+# replaced by just that left-hand expression), and the aggregation itself
+# (grouping, windowing, threshold comparison) is done in pure Python.
+#
+# Only count() is implemented — sum()/min()/max()/avg() need a numeric field
+# value per event, which nothing upstream reliably extracts from raw text
+# logs, so those are reported as unsupported rather than guessed at.
+
+_AGG_TIME_UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+_AGG_CLAUSE_RE = re.compile(
+    r"^(?P<left>.*?)\|\s*(?P<func>count|sum|min|max|avg)\s*\(\s*(?P<field>[^)]*)\s*\)\s*"
+    r"(?:by\s+(?P<by>[A-Za-z0-9_.]+)\s*)?"
+    r"(?P<op>>=|<=|==|!=|>|<)\s*(?P<threshold>-?\d+(?:\.\d+)?)\s*"
+    r"(?:in\s+(?P<window>\d+)\s*(?P<unit>[smhd]))?\s*$",
+    re.IGNORECASE,
+)
+
+#: Fields commonly used in `by <field>` that raw text logs never expose as a
+#: literal `field=value` token — extracted from the raw line via a generic
+#: pattern instead of the usual key=value parser.
+_AGG_IP_FIELD_NAMES = {"source_ip", "src_ip", "srcip", "client_ip", "remote_ip", "ip"}
+_IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+
+class SigmaAggregationUnsupported(Exception):
+    """The condition needs an aggregation function this evaluator can't run."""
+
+
+def _parse_aggregation_clause(condition_str: str) -> dict[str, Any] | None:
+    match = _AGG_CLAUSE_RE.match((condition_str or "").strip())
+    if not match:
+        return None
+    func = match.group("func").lower()
+    if func != "count":
+        raise SigmaAggregationUnsupported(
+            f"aggregation function '{func}()' is not supported (only count() is)"
+        )
+    window_s = None
+    if match.group("window"):
+        window_s = int(match.group("window")) * _AGG_TIME_UNITS[match.group("unit").lower()]
+    return {
+        "left": match.group("left").strip(),
+        "by": match.group("by"),
+        "op": match.group("op"),
+        "threshold": float(match.group("threshold")),
+        "window_s": window_s,
+    }
+
+
+def has_aggregation_condition(raw_yaml: str) -> bool:
+    """True if this rule's condition uses `| count(...)`-style syntax."""
+    try:
+        doc = yaml.safe_load(raw_yaml) or {}
+    except yaml.YAMLError:
+        return False
+    condition = (doc.get("detection") or {}).get("condition")
+    if isinstance(condition, list):
+        condition = condition[0] if condition else ""
+    return "|" in str(condition or "")
+
+
+def _left_only_yaml(raw_yaml: str, left_expr: str) -> str:
+    doc = yaml.safe_load(raw_yaml) or {}
+    doc.setdefault("detection", {})["condition"] = left_expr
+    return yaml.safe_dump(doc, sort_keys=False)
+
+
+def _resolve_group_key(event: dict, field: str | None) -> str | None:
+    if not field:
+        return "*"
+    for key in (field, field.lower(), field.upper()):
+        if key in event and event[key] not in (None, ""):
+            return str(event[key])
+    if field.lower() in _AGG_IP_FIELD_NAMES:
+        m = _IPV4_RE.search(str(event.get("__raw__", "")))
+        if m:
+            return m.group(0)
+    return None
+
+
+def _parse_event_timestamp(event: dict) -> float | None:
+    raw = event.get("timestamp") or event.get("@timestamp")
+    if not raw:
+        return None
+    try:
+        text = str(raw).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        return datetime.fromisoformat(text).timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def evaluate_sigma_rule_over_events(raw_yaml: str, sample_events: list[str]) -> dict:
+    """Evaluate an aggregation (`| count() ...`) rule against a batch of
+    captured events for one attack run. Each entry in ``sample_events`` is a
+    JSON string in the same shape ``evaluate_sigma_rule`` accepts, ideally
+    including a ``timestamp`` field so the time window can be honoured.
+    """
+    if not raw_yaml:
+        raise SigmaEvaluationError("Detection rule has no Sigma YAML")
+
+    doc = yaml.safe_load(raw_yaml) or {}
+    condition = (doc.get("detection") or {}).get("condition")
+    if isinstance(condition, list):
+        condition = condition[0] if condition else ""
+    agg = _parse_aggregation_clause(str(condition or ""))
+    if agg is None:
+        raise SigmaEvaluationError("No aggregation clause found in condition")
+
+    left_yaml = _left_only_yaml(raw_yaml, agg["left"])
+    rule, tree = _parse_rule_cached(left_yaml)
+
+    groups: dict[str, list[float]] = {}
+    ungroupable = 0
+    for raw_event in sample_events:
+        event = _parse_event(raw_event or "")
+        ctx = _EvalContext(event=event)
+        if not _eval_node(tree, ctx):
+            continue
+        key = _resolve_group_key(event, agg["by"])
+        if key is None:
+            ungroupable += 1
+            continue
+        ts = _parse_event_timestamp(event)
+        groups.setdefault(key, []).append(ts if ts is not None else 0.0)
+
+    def compare(value: float) -> bool:
+        op = agg["op"]
+        t = agg["threshold"]
+        if op == ">":
+            return value > t
+        if op == ">=":
+            return value >= t
+        if op == "<":
+            return value < t
+        if op == "<=":
+            return value <= t
+        if op == "==":
+            return value == t
+        return value != t
+
+    group_counts: dict[str, int] = {}
+    matched = False
+    for key, timestamps in groups.items():
+        timestamps.sort()
+        if agg["window_s"] is None:
+            best = len(timestamps)
+        else:
+            best, left = 0, 0
+            for right in range(len(timestamps)):
+                while timestamps[right] - timestamps[left] > agg["window_s"]:
+                    left += 1
+                best = max(best, right - left + 1)
+        group_counts[key] = best
+        if compare(best):
+            matched = True
+
+    return {
+        "matched": matched,
+        "engine": "pysigma-aggregate",
+        "function": "count",
+        "by": agg["by"],
+        "op": agg["op"],
+        "threshold": agg["threshold"],
+        "window_s": agg["window_s"],
+        "group_counts": group_counts,
+        "events_considered": len(sample_events),
+        "events_ungroupable": ungroupable,
     }
 
 
@@ -228,15 +433,13 @@ def _eval_node(node: Any, ctx: _EvalContext) -> bool:
     if isinstance(node, ConditionFieldEqualsValueExpression):
         return _eval_field_value(node.field, node.value, ctx)
     if isinstance(node, ConditionValueExpression):
-        # Keyword search across the raw event text.
-        haystack = str(ctx.event.get("__raw__", "")).lower()
-        needle = _sigma_string_to_pattern(node.value, ctx)
-        if needle is None:
-            return False
-        try:
-            return re.search(needle, haystack) is not None
-        except re.error:
-            return False
+        # Keyword search across the raw event text. Delegate to the same
+        # matcher unfielded selection items use (_match_value_against_raw) —
+        # it already does this correctly (case-insensitive via re.IGNORECASE).
+        # An earlier version of this branch lowercased the haystack but not
+        # the search pattern, so any keyword containing an uppercase letter
+        # (e.g. "Failed password") could never match.
+        return _match_value_against_raw(node.value, ctx)
     # Unknown node — fall back to False but note it so the caller can see.
     ctx.note(f"unsupported condition node: {type(node).__name__}")
     return False

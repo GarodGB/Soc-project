@@ -153,6 +153,15 @@ require two substrings in the same rule, use one <regex> with a lookahead \
 (e.g. <regex type="pcre2">(?=.*foo)(?=.*bar)</regex>), or split the \
 conditions across a parent/child rule pair with <if_sid>. <field name="..."> \
 is the one exception — you may repeat it with a different `name` each time.
+- <field name="..."> only matches a field the decoder for this log actually \
+populates (srcip, dstuser, url, protocol, id, status, and any custom fields \
+named in evidence.wazuh_result). It is NOT a general way to test for a \
+substring of the raw log under a name of your choosing — a rule keyed on \
+<field name="method"> (or any other field not present in the evidence) parses \
+and deploys without error but silently never matches, because that field is \
+never set. Standard Apache/web decoders do not expose a separate HTTP-method \
+field — if you need to key on GET vs POST, or on query-string content, use \
+<match>/<regex> against the full log line instead of guessing a field name.
 
 SIGMA YAML CONSTRAINTS
 - Emit one valid Sigma rule document with title, id, status, description, \
@@ -162,6 +171,18 @@ condition referencing only defined selections), falsepositives, level and tags.
 - Use the field names that actually appear in the supplied evidence.
 - Do not use aggregation or correlation syntax the platform's evaluator cannot \
 assess unless the gap genuinely requires it; if you do, say so in tuning_notes.
+- evidence.raw_logs[].full_log is often unstructured text (a Linux syslog/ \
+auth-log/application line, an Apache access line, etc.), not a structured \
+process_creation event. The platform's local Sigma evaluator does NOT parse \
+that text into Sysmon/EDR-style fields — there is no Image, CommandLine, \
+ParentImage, User, etc. unless that exact "Key=value" token is literally \
+present in the raw text, and even then only the first whitespace-delimited \
+token after "=" is captured (a multi-word value like COMMAND=/usr/bin/cp \
+/a /b is truncated to "/usr/bin/cp"). If the evidence for this logsource is \
+raw unstructured text rather than real structured/JSON fields, do NOT invent \
+a Sysmon/EDR field schema (Image, CommandLine, ParentImage, ...) — key the \
+selections off full_log|contains matching literal substrings of the captured \
+line instead.
 
 Return only JSON matching the supplied schema. Do not return Markdown fences. \
 Do not provide hidden reasoning or chain-of-thought. Return only a concise \

@@ -913,9 +913,11 @@ def test_24b_approval_requires_passing_validation_and_never_deploys(env, monkeyp
 
 def _fake_manager(monkeypatch, *, validation_valid=True, healthy=True,
                   existing="<group name=\"absega_ai,\"><rule id=\"110999\" level=\"3\">"
-                           "<description>previous</description></rule></group>"):
+                           "<description>previous</description></rule></group>",
+                  logtest_rule_id="110001"):
     import app.wazuh_client as wazuh_client
-    state = {"file": existing, "writes": [], "restarts": 0, "deleted": False}
+    state = {"file": existing, "writes": [], "restarts": 0, "deleted": False,
+             "logtest_rule_id": logtest_rule_id}
 
     monkeypatch.setattr(wazuh_client, "manager_info",
                         lambda: {"url": "https://wazuh.test:55000", "api_version": "4.9"},
@@ -948,7 +950,7 @@ def _fake_manager(monkeypatch, *, validation_valid=True, healthy=True,
                         raising=False)
     monkeypatch.setattr(wazuh_client, "logtest",
                         lambda log, log_format="syslog", location="": {
-                            "ran": True, "rule_id": "110001", "level": 10,
+                            "ran": True, "rule_id": state["logtest_rule_id"], "level": 10,
                             "description": "AI rule", "groups": [], "raw": {}},
                         raising=False)
     return state
@@ -1219,7 +1221,7 @@ def test_33_existing_validation_apis_still_work(env):
 def test_33b_full_engineer_workflow_end_to_end(env, monkeypatch):
     """Scenario E — generate → reject with feedback → v2 → validate → approve →
     save to platform → deploy (mocked manager) → history."""
-    _fake_manager(monkeypatch)
+    state = _fake_manager(monkeypatch)
     client = env["client"]
 
     script([make_response("wazuh_rule", "web", wazuh=True, summary="Initial LFI draft.")])
@@ -1250,6 +1252,11 @@ def test_33b_full_engineer_workflow_end_to_end(env, monkeypatch):
                          headers=env["engineer"]).json()
     assert preview["target_file"] == "/var/ossec/etc/rules/absega_ai_rules.xml"
     assert preview["rules"]
+
+    # Simulate the deployed rule actually firing on the captured event —
+    # the manager's real logtest would report whichever rule ID was just
+    # written, not the fixture's unrelated default.
+    state["logtest_rule_id"] = str(preview["rules"][0]["rule_id"])
 
     deployed = client.post(f"/api/ai/rule-suggestions/{suggestion_id}/deploy-to-wazuh",
                            json={"confirm": True}, headers=env["engineer"])

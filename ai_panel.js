@@ -273,6 +273,14 @@
     }, 'Saving to the detection store…');
   };
 
+  Panel.prototype.deleteDetection = function () {
+    var id = this.suggestionId();
+    if (!confirm('Delete the saved AI detection rule?\n\nThis is a testing-only action: it removes the saved detection from the platform (and its Sigma coverage on attack replay) so you can regenerate and save again. It does not affect anything already deployed to Wazuh.')) return;
+    this.run(function () {
+      return call('DELETE', '/api/ai/rule-suggestions/' + id + '/platform-save', {});
+    }, 'Deleting the saved detection…');
+  };
+
   Panel.prototype.copyRule = function (kind) {
     var el = document.getElementById(this.uid + (kind === 'sigma' ? '-yaml' : '-xml'));
     if (!el) return;
@@ -453,14 +461,24 @@
       body += '<div class="aip-note bad">' + esc(this.error) + '</div>';
     }
     if (s.message) {
-      body += '<div class="aip-note green">' + esc(s.message) + '</div>';
+      var deployFailed = s.deployment && s.deployment.success === false;
+      body += '<div class="aip-note ' + (deployFailed ? 'bad' : 'green') + '">' + esc(s.message) + '</div>';
     }
 
     // ── A. verified coverage — nothing to generate ─────────────────────────
     if (decision.gap_type === 'none') {
       body += '<div class="aip-note green">' + esc(decision.message) + '</div>';
       body += '<div class="aip-note">' + esc(decision.reason) + '</div>';
+      var canReviewNone = !!perms.may_review;
+      if ((s.platform_saves || []).length && sugg && sugg.status === 'saved_to_platform') {
+        body += '<div class="aip-actions">' +
+          '<button class="aip-btn red" id="' + this.uid + '-delete-detection" ' +
+          'title="Testing only — deletes the saved detection so you can regenerate and re-save."' +
+          (canReviewNone ? '' : ' disabled') + '>Delete AI Detection Rule</button></div>';
+      }
       this.el.innerHTML = '<div class="aip">' + head + '<div class="aip-body">' + body + '</div></div>';
+      var delBtnNone = document.getElementById(this.uid + '-delete-detection');
+      if (delBtnNone) delBtnNone.onclick = function () { self.deleteDetection(); };
       return;
     }
 
@@ -475,8 +493,15 @@
       return;
     }
 
-    // ── no draft yet — offer generation ────────────────────────────────────
-    if (!sugg || !cur) {
+    // ── no draft yet, or the last draft was rejected — offer generation ────
+    var wasRejected = !!(sugg && sugg.status === 'rejected');
+    if (!sugg || !cur || wasRejected) {
+      if (wasRejected) {
+        body += '<div class="aip-note bad">The previous draft (v' + esc(sugg.current_version) + ') was rejected' +
+          (s.last_action && s.last_action.comment ? ': ' + esc(s.last_action.comment) : '.') +
+          (s.last_action ? ' — by ' + esc(s.last_action.actor || 'unknown') + ' · ' +
+            esc(fmtTime(s.last_action.created_at)) : '') + '</div>';
+      }
       body += '<div class="aip-note ai">' + esc(decision.message) + '</div>';
       body += '<div class="aip-note">' + esc(decision.reason) + '</div>';
       if (decision.gap_type === 'telemetry' || decision.gap_type === 'evaluator') {
@@ -495,7 +520,7 @@
         (perms.can_generate ? '' : ' disabled') + '>✦ Generate Recommended Rule</button></div>';
       this.el.innerHTML = '<div class="aip">' + head + '<div class="aip-body">' + body + '</div></div>';
       var genBtn = document.getElementById(this.uid + '-gen');
-      if (genBtn) genBtn.onclick = function () { genBtn.disabled = true; self.generate(false); };
+      if (genBtn) genBtn.onclick = function () { genBtn.disabled = true; self.generate(wasRejected); };
       return;
     }
 
@@ -504,9 +529,17 @@
     var hasSigma = !!(cur.sigma_yaml && cur.sigma_yaml.trim());
     var hasTelemetry = !!(cur.telemetry_recommendations && cur.telemetry_recommendations.length);
 
-    var tabs = [['overview', 'Overview']];
-    if (hasWazuh) tabs.push(['wazuh', 'Wazuh XML']);
-    if (hasSigma) tabs.push(['sigma', 'Sigma YAML']);
+    // No Wazuh/Sigma rule was drafted (e.g. the evaluator had nothing to test
+    // against, or telemetry is missing) — this is guidance-only by design,
+    // but nothing else on this screen says so, so say it up front.
+    if (!hasWazuh && !hasSigma) {
+      body += '<div class="aip-note warn">' + esc(decision.message) + '</div>';
+      body += '<div class="aip-note">' + esc(decision.reason) + '</div>';
+      body += '<div class="aip-note">No Wazuh or Sigma rule was drafted for this recommendation' +
+        (hasTelemetry ? ' — see the Telemetry tab for what to fix.' : '.') + '</div>';
+    }
+
+    var tabs = [['overview', 'Overview'], ['wazuh', 'Wazuh XML'], ['sigma', 'Sigma YAML']];
     if (hasTelemetry) tabs.push(['telemetry', 'Telemetry']);
     tabs.push(['fp', 'False Positives']);
     tabs.push(['validation', 'Validation']);
@@ -546,26 +579,30 @@
 
     body += '<div class="aip-pane' + (self.tab === 'overview' ? ' active' : '') + '" data-aippane="overview">' + ov + '</div>';
 
-    if (hasWazuh) {
-      body += '<div class="aip-pane' + (self.tab === 'wazuh' ? ' active' : '') + '" data-aippane="wazuh">' +
-        '<div class="aip-lbl">Wazuh rule XML — editable</div>' +
-        '<textarea class="aip-code" id="' + this.uid + '-xml" spellcheck="false">' + esc(cur.wazuh_xml) + '</textarea>' +
-        '<div class="aip-lbl">Expected fields</div>' + list((cur.wazuh_meta || {}).expected_fields, 'Not specified.') +
-        ((cur.wazuh_meta || {}).test_event
-          ? '<div class="aip-lbl">Suggested test event</div><div class="aip-pre">' + esc(cur.wazuh_meta.test_event) + '</div>'
-          : '') +
-        '</div>';
-    }
-    if (hasSigma) {
-      body += '<div class="aip-pane' + (self.tab === 'sigma' ? ' active' : '') + '" data-aippane="sigma">' +
-        '<div class="aip-lbl">Sigma rule YAML — editable</div>' +
-        '<textarea class="aip-code" id="' + this.uid + '-yaml" spellcheck="false">' + esc(cur.sigma_yaml) + '</textarea>' +
-        ((cur.sigma_meta || {}).logsource_explanation
-          ? '<div class="aip-lbl">Log source</div><div class="aip-note">' + esc(cur.sigma_meta.logsource_explanation) + '</div>'
-          : '') +
-        '<div class="aip-lbl">Expected fields</div>' + list((cur.sigma_meta || {}).expected_fields, 'Not specified.') +
-        '</div>';
-    }
+    body += '<div class="aip-pane' + (self.tab === 'wazuh' ? ' active' : '') + '" data-aippane="wazuh">' +
+      (hasWazuh
+        ? ('<div class="aip-lbl">Wazuh rule XML — editable</div>' +
+           '<textarea class="aip-code" id="' + this.uid + '-xml" spellcheck="false">' + esc(cur.wazuh_xml) + '</textarea>' +
+           '<div class="aip-lbl">Expected fields</div>' + list((cur.wazuh_meta || {}).expected_fields, 'Not specified.') +
+           ((cur.wazuh_meta || {}).test_event
+             ? '<div class="aip-lbl">Suggested test event</div><div class="aip-pre">' + esc(cur.wazuh_meta.test_event) + '</div>'
+             : ''))
+        : ('<div class="aip-note warn">No Wazuh rule was drafted for this recommendation.</div>' +
+           '<div class="aip-note">' + esc(decision.message || '') + '</div>' +
+           '<div class="aip-note">' + esc(decision.reason || '') + '</div>')) +
+      '</div>';
+    body += '<div class="aip-pane' + (self.tab === 'sigma' ? ' active' : '') + '" data-aippane="sigma">' +
+      (hasSigma
+        ? ('<div class="aip-lbl">Sigma rule YAML — editable</div>' +
+           '<textarea class="aip-code" id="' + this.uid + '-yaml" spellcheck="false">' + esc(cur.sigma_yaml) + '</textarea>' +
+           ((cur.sigma_meta || {}).logsource_explanation
+             ? '<div class="aip-lbl">Log source</div><div class="aip-note">' + esc(cur.sigma_meta.logsource_explanation) + '</div>'
+             : '') +
+           '<div class="aip-lbl">Expected fields</div>' + list((cur.sigma_meta || {}).expected_fields, 'Not specified.'))
+        : ('<div class="aip-note warn">No Sigma rule was drafted for this recommendation.</div>' +
+           '<div class="aip-note">' + esc(decision.message || '') + '</div>' +
+           '<div class="aip-note">' + esc(decision.reason || '') + '</div>')) +
+      '</div>';
     if (hasTelemetry) {
       var tel = (cur.telemetry_recommendations || []).map(function (t) {
         return '<div style="border:1px solid var(--border);border-radius:8px;padding:11px;margin-bottom:9px">' +
@@ -690,6 +727,11 @@
       acts += '<button class="aip-btn green" id="' + this.uid + '-platform"' +
         (canReview ? '' : ' disabled') + '>Save to Platform</button>';
     }
+    if ((s.platform_saves || []).length && sugg && sugg.status === 'saved_to_platform') {
+      acts += '<button class="aip-btn red" id="' + this.uid + '-delete-detection" ' +
+        'title="Testing only — deletes the saved detection so you can regenerate and re-save."' +
+        (canReview ? '' : ' disabled') + '>Delete AI Detection Rule</button>';
+    }
     acts += '<button class="aip-btn green" id="' + this.uid + '-approve"' +
       (canApprove ? '' : ' disabled') + '>Approve Draft</button>';
     if (hasWazuh) {
@@ -700,6 +742,17 @@
       (canReview ? '' : ' disabled') + '>Reject &amp; Regenerate</button>';
     acts += '</div>';
 
+    if (!canApprove) {
+      var whyApprove = [];
+      if (!perms.may_review) whyApprove.push('your role may not approve drafts');
+      else if (!decision.approval_allowed) whyApprove.push(decision.message || 'this recommendation cannot be approved as a deployable rule');
+      else if (!readyReview) whyApprove.push('the draft has not passed validation yet — click "Validate Draft"');
+      if (whyApprove.length) {
+        var whyApproveText = whyApprove.join('; ');
+        acts += '<div class="aip-note warn" style="margin-top:9px">Approval is disabled — ' +
+          esc(whyApproveText) + (/[.!?]$/.test(whyApproveText) ? '' : '.') + '</div>';
+      }
+    }
     if (!canDeploy && hasWazuh) {
       var why = [];
       if (!perms.may_deploy) why.push('your role may not deploy to Wazuh');
@@ -739,6 +792,7 @@
     on('copy-wazuh', function () { self.copyRule('wazuh'); });
     on('copy-sigma', function () { self.copyRule('sigma'); });
     on('platform', function () { self.saveToPlatform(); });
+    on('delete-detection', function () { self.deleteDetection(); });
     on('approve', function () { self.approve(); });
     on('deploy', function () { self.openDeploy(); });
     on('reject', function () { self.openFeedback(); });

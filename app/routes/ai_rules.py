@@ -835,6 +835,68 @@ def save_to_platform(suggestion_id: int, body: SaveToPlatformRequest,
     return payload
 
 
+_DETECTION_CHILD_TABLES = (
+    "detection_technique_mapping", "detection_telemetry", "validation_cases",
+    "simulation_results", "atomic_runs", "ad_rule_comparisons",
+)
+
+
+def _delete_detection(conn, detection_id: int) -> None:
+    for table in _DETECTION_CHILD_TABLES:
+        conn.execute(f"DELETE FROM {table} WHERE detection_id=%s", (detection_id,))
+    conn.execute("DELETE FROM detections WHERE detection_id=%s", (detection_id,))
+
+
+@router.delete("/rule-suggestions/{suggestion_id}/platform-save")
+def delete_platform_save(suggestion_id: int, request: Request) -> dict:
+    """Testing-only: undo a save-to-platform by deleting the saved detection(s).
+
+    Lets a Detection Engineer re-run "generate -> approve -> save -> relaunch
+    attack" against the same recommendation without hand-editing the database
+    between attempts. Refuses once the suggestion has moved past
+    saved_to_platform (staged/deployed/...) so this can't silently orphan a
+    live deployment's bookkeeping — roll that back through the normal flow
+    first.
+    """
+    actor = require_reviewer(request)
+    suggestion = _suggestion_or_404(suggestion_id)
+    if suggestion["status"] != "saved_to_platform":
+        raise HTTPException(
+            status_code=409,
+            detail=(f"Suggestion status is '{suggestion['status']}', not "
+                    "'saved_to_platform' — there is nothing to delete, or it "
+                    "has moved past this step (e.g. staged/deployed) and must "
+                    "be rolled back through that flow instead."),
+        )
+    current = repo.get_current_version(suggestion)
+
+    with repo.transaction() as conn:
+        detection_ids = repo.delete_platform_saves(suggestion_id, conn)
+        for detection_id in detection_ids:
+            _delete_detection(conn, detection_id)
+        repo.update_suggestion(suggestion_id, conn, status="approved")
+        repo.record_action(
+            suggestion_id=suggestion_id,
+            version_id=current["version_id"] if current else None,
+            action="platform_save_deleted", actor=actor.email, comment="",
+            conn=conn, metadata={"detection_ids": detection_ids},
+        )
+
+    conn = get_connection()
+    try:
+        suggestion = _suggestion_or_404(suggestion_id, conn)
+        bundle = _decision_for(suggestion)
+        payload = _payload(suggestion, bundle, actor, conn)
+    finally:
+        conn.close()
+    payload["deleted_detection_ids"] = detection_ids
+    payload["message"] = (
+        f"Deleted {len(detection_ids)} saved detection(s) "
+        f"({', '.join('#' + str(d) for d in detection_ids)}). Save to "
+        "Platform is available again.")
+    return payload
+
+
 # ── Deploy ───────────────────────────────────────────────────────────────────
 
 @router.get("/rule-suggestions/{suggestion_id}/deployment-preview")

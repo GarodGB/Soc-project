@@ -301,7 +301,11 @@ def deploy_rule(*, rule_xml: str, positive_event: str = "",
             result.stage = "health"
             return result
 
-    # 6) Post-deployment logtest against the real captured event.
+    # 6) Post-deployment logtest against the real captured event. This is the
+    # only step that actually proves the deployed rule detects the attack it
+    # was written for — a non-match here must fail the deployment, not just
+    # get logged and ignored, or a rule that provably does not fire would be
+    # left live and reported as a success.
     result.stage = "logtest"
     if positive_event:
         try:
@@ -317,9 +321,20 @@ def deploy_rule(*, rule_xml: str, positive_event: str = "",
                 "description": outcome.get("description"),
                 "level": outcome.get("level"),
             }
-            step("logtest", True,
+            step("logtest", matched,
                  f"rule {fired or 'none'} fired on the captured event"
                  + ("" if matched else " (not the deployed rule)"))
+            if not matched:
+                rollback(
+                    "The rule was deployed and the manager restarted, but the "
+                    f"captured attack event did not trigger it (rule {fired or 'none'} "
+                    "fired instead, or nothing fired). The deployment was rolled back — "
+                    "a rule that does not detect the attack it was written for must not "
+                    "be left live. Review the draft's field names and condition logic "
+                    "against the failure reasons on the Validation tab."
+                )
+                result.stage = "logtest"
+                return result
         except Exception as exc:
             result.logtest = {"executed": False,
                               "reason": scrub_secrets(str(exc))}

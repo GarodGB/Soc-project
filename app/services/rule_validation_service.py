@@ -477,13 +477,21 @@ def inspect_sigma_rule(document: dict) -> tuple[list[str], list[str]]:
         else:
             condition_text = (" ".join(condition) if isinstance(condition, list)
                               else str(condition or ""))
+            # Sigma aggregation syntax (`selection | count() by source_ip > 5`, also
+            # sum/min/max/avg) names a raw event field after `by` — that field is
+            # never a selection block, so it must not be flagged as an undefined
+            # reference or every valid threshold/brute-force rule fails validation.
+            aggregation_fields = set(re.findall(
+                r"\|\s*(?:count|sum|min|max|avg)\s*\([^)]*\)\s*by\s+([A-Za-z_]\w*)",
+                condition_text, re.IGNORECASE))
             referenced = set(re.findall(r"[A-Za-z_][\w]*", condition_text))
             keywords = {"and", "or", "not", "of", "them", "all", "1", "any",
-                        "count", "by", "near", "selection"}
+                        "count", "by", "near", "selection", "sum", "min", "max", "avg"}
             unknown = sorted(
                 name for name in referenced
                 if name.lower() not in keywords
                 and name not in selections
+                and name not in aggregation_fields
                 and not any(sel.startswith(name.rstrip("*")) for sel in selections)
                 and not name.isdigit()
             )
