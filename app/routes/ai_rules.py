@@ -34,6 +34,7 @@ from app.models.ai_rule_models import (
 )
 from app.services import ai_rule_repository as repo
 from app.services import evidence_collection_service as evidence_svc
+from app.services.audit_service import log_audit
 from app.services import gap_decision_service as gap
 from app.services import gemini_service
 from app.services.auth_service import (
@@ -441,7 +442,7 @@ def generate(body: GenerateRequest, request: Request) -> dict:
     The verdict is retrieved from the platform's own tables; anything the client
     claims about detection state is ignored.
     """
-    actor = require_actor(request)
+    actor = require_reviewer(request)
     bundle = _bundle_or_404(body.surface, body.attack_id, body.validation_run_id)
     _guard_generation(bundle)
 
@@ -595,7 +596,7 @@ def edit_draft(suggestion_id: int, body: DraftEditRequest, request: Request) -> 
 @router.post("/rule-suggestions/{suggestion_id}/validate")
 def validate(suggestion_id: int, request: Request) -> dict:
     """Re-run every validation check against the current draft version."""
-    actor = require_actor(request)
+    actor = require_reviewer(request)
     suggestion = _suggestion_or_404(suggestion_id)
     bundle = _decision_for(suggestion)
     current = repo.get_current_version(suggestion)
@@ -651,6 +652,7 @@ def approve(suggestion_id: int, body: ApproveRequest, request: Request) -> dict:
             action="approved", actor=actor.email, comment=body.comment or "", conn=conn,
             metadata={"version_number": current["version_number"]},
         )
+    log_audit(actor, "approve", "ai_rule_suggestion", suggestion_id, detail=body.comment or "")
 
     conn = get_connection()
     try:
@@ -680,6 +682,7 @@ def reject(suggestion_id: int, body: RejectRequest, request: Request) -> dict:
             action="rejected", actor=actor.email, comment=body.reason, conn=conn,
             metadata={"version_number": (current or {}).get("version_number")},
         )
+    log_audit(actor, "reject", "ai_rule_suggestion", suggestion_id, detail=body.reason)
 
     conn = get_connection()
     try:
@@ -822,6 +825,8 @@ def save_to_platform(suggestion_id: int, body: SaveToPlatformRequest,
                                  "version_number": current["version_number"]},
         )
 
+    log_audit(actor, "save_to_platform", "ai_rule_suggestion", suggestion_id, detail=f"detection #{detection_id}: {title}")
+
     conn = get_connection()
     try:
         payload = _payload(_suggestion_or_404(suggestion_id, conn), bundle, actor, conn)
@@ -881,6 +886,9 @@ def delete_platform_save(suggestion_id: int, request: Request) -> dict:
             action="platform_save_deleted", actor=actor.email, comment="",
             conn=conn, metadata={"detection_ids": detection_ids},
         )
+
+    log_audit(actor, "delete_platform_save", "ai_rule_suggestion", suggestion_id,
+              detail=f"detections {detection_ids}")
 
     conn = get_connection()
     try:
@@ -1006,6 +1014,9 @@ def deploy(suggestion_id: int, body: DeployRequest, request: Request) -> dict:
                 metadata=result.to_dict(),
             )
 
+    log_audit(actor, "deploy_to_wazuh" if result.success else "deploy_to_wazuh_failed",
+              "ai_rule_suggestion", suggestion_id, detail=result.message)
+
     conn = get_connection()
     try:
         payload = _payload(_suggestion_or_404(suggestion_id, conn), bundle, actor, conn)
@@ -1047,6 +1058,8 @@ def rollback(suggestion_id: int, body: DeployRequest, request: Request) -> dict:
             comment=body.comment or result.message, conn=conn,
             metadata=result.to_dict(),
         )
+
+    log_audit(actor, "rollback", "ai_rule_suggestion", suggestion_id, detail=result.message)
 
     conn = get_connection()
     try:

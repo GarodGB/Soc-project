@@ -7,27 +7,31 @@ detections and write rule files to the Wazuh Manager, so it enforces its own
 checks on the server.
 
 What this adds: ``POST /api/auth/login`` now issues an opaque bearer token that
-is stored server-side alongside the user's email and role. The AI routes resolve
-the caller from that token and refuse privileged actions for roles that are not
-permitted.
+is stored server-side (in the ``sessions`` table — see
+``database/migrations/009_sessions.sql``) alongside the user's email and role.
+The AI routes resolve the caller from that token and refuse privileged actions
+for roles that are not permitted.
 
-Known limitation (documented, not hidden): the credential store is still the
-in-memory demo dictionary in ``app/routes/auth.py`` with plaintext passwords,
-and sessions live in process memory, so they are lost on restart and are not
-shared across workers. Replacing that store with hashed credentials in the
-database is the remaining work before this is production-grade.
+Sessions are stored in Postgres, not process memory — the app can restart or
+redeploy without silently logging everyone out (this used to be an in-memory
+dict, which meant a "remember me" login lost its persistence on the very
+first restart).
 """
 from __future__ import annotations
 
 import secrets
-import threading
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, Request
 
+from app.database import get_connection
+
 #: Sessions expire after this many seconds of wall-clock time.
 SESSION_TTL_SECONDS = 12 * 60 * 60
+#: A "remember me" login gets a longer-lived session instead of the default.
+REMEMBER_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 
 # Roles, normalised to lowercase.
 ROLE_ADMIN = "admin"
@@ -66,36 +70,53 @@ ANONYMOUS = Actor(email="", role="", authenticated=False)
 
 
 class _SessionStore:
-    def __init__(self) -> None:
-        self._sessions: dict[str, tuple[str, str, float]] = {}
-        self._lock = threading.Lock()
-
-    def issue(self, email: str, role: str) -> str:
+    def issue(self, email: str, role: str, ttl_seconds: int = SESSION_TTL_SECONDS) -> str:
         token = secrets.token_urlsafe(32)
-        with self._lock:
-            self._sessions[token] = (email, role, time.time() + SESSION_TTL_SECONDS)
+        conn = get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO sessions (token, email, role, expires_at, created_at) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (token, email, role, time.time() + ttl_seconds, datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
         return token
 
     def resolve(self, token: str) -> Actor | None:
         if not token:
             return None
-        with self._lock:
-            entry = self._sessions.get(token)
-            if entry is None:
+        conn = get_connection()
+        try:
+            row = conn.execute(
+                "SELECT email, role, expires_at FROM sessions WHERE token = %s", (token,)
+            ).fetchone()
+            if row is None:
                 return None
-            email, role, expires = entry
-            if time.time() > expires:
-                self._sessions.pop(token, None)
+            if time.time() > row["expires_at"]:
+                conn.execute("DELETE FROM sessions WHERE token = %s", (token,))
+                conn.commit()
                 return None
-        return Actor(email=email, role=_normalize_role(role))
+            return Actor(email=row["email"], role=_normalize_role(row["role"]))
+        finally:
+            conn.close()
 
     def revoke(self, token: str) -> None:
-        with self._lock:
-            self._sessions.pop(token, None)
+        conn = get_connection()
+        try:
+            conn.execute("DELETE FROM sessions WHERE token = %s", (token,))
+            conn.commit()
+        finally:
+            conn.close()
 
     def clear(self) -> None:
-        with self._lock:
-            self._sessions.clear()
+        conn = get_connection()
+        try:
+            conn.execute("DELETE FROM sessions")
+            conn.commit()
+        finally:
+            conn.close()
 
 
 _store = _SessionStore()
@@ -110,8 +131,9 @@ def _normalize_role(role: str) -> str:
     return ROLE_ANALYST
 
 
-def issue_session(email: str, role: str) -> str:
-    return _store.issue(email, role)
+def issue_session(email: str, role: str, remember: bool = False) -> str:
+    ttl = REMEMBER_SESSION_TTL_SECONDS if remember else SESSION_TTL_SECONDS
+    return _store.issue(email, role, ttl)
 
 
 def revoke_session(token: str) -> None:
@@ -153,6 +175,18 @@ def require_reviewer(request: Request) -> Actor:
             status_code=403,
             detail=("This action requires the Detection Engineer or Administrator "
                     f"role; your account has the '{actor.role}' role."),
+        )
+    return actor
+
+
+def require_admin(request: Request) -> Actor:
+    """Only an Administrator — e.g. the audit log."""
+    actor = require_actor(request)
+    if actor.role != ROLE_ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail=("This action requires the Administrator role; your "
+                    f"account has the '{actor.role}' role."),
         )
     return actor
 

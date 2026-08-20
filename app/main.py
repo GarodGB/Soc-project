@@ -18,11 +18,19 @@ from app.db_migrate import run_migrations
 # on first boot; a no-op on every boot after that).
 run_migrations()
 
+from app.services.user_service import seed_default_users
+
+# Idempotent: inserts the 3 demo accounts only if they don't already exist,
+# so a fresh checkout works out of the box and a changed password sticks.
+seed_default_users()
+
 from app.routes import detections, telemetry, mitre, validation, auth, atomic, ai, wazuh
 from app.routes import attack_preflight
 from app.routes import ad_validation, ad_catalog
 from app.routes import validation_runs
 from app.routes import ai_rules
+from app.routes import audit
+from app.routes import cases
 
 app = FastAPI(
     title="ABSEGA Detection Platform",
@@ -50,6 +58,8 @@ app.include_router(ai_rules.router,    prefix="/api/ai",         tags=["AI Rule 
 app.include_router(wazuh.router,       prefix="/api/wazuh",      tags=["Wazuh"])
 app.include_router(attack_preflight.router, prefix="/api/wazuh", tags=["Wazuh"])
 app.include_router(validation_runs.router, prefix="/api/validation-runs", tags=["Validation Runs"])
+app.include_router(audit.router,       prefix="/api/audit-log",  tags=["Audit Log"])
+app.include_router(cases.router,       prefix="/api/cases",      tags=["Cases"])
 
 # AD / Windows validation routers (self-prefixed)
 app.include_router(ad_validation.router)

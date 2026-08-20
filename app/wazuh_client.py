@@ -89,6 +89,7 @@ def fetch_alerts(
     include_archives: bool = False,
     time_from: str = None,
     time_to: str = None,
+    exclude_rule_ids: list = None,
 ) -> dict:
     """
     Fetch alerts directly from the Wazuh Indexer (OpenSearch).
@@ -159,12 +160,23 @@ def fetch_alerts(
             }
         })
 
-    if filters:
-        query["query"] = {
-            "bool": {
-                "must": filters
-            }
-        }
+    must_not = []
+    if exclude_rule_ids:
+        # Exclusion has to happen in the query itself, not after the results
+        # come back — otherwise `size` caps the *raw* fetch, and if the most
+        # recent hits happen to be excluded ones, the caller can end up with
+        # far fewer than `limit` results even though plenty exist further
+        # down (this is what made the Overview "recent alerts" table show 3
+        # rows instead of the requested 10 once the platform started
+        # generating a lot of its own tagging alerts).
+        must_not.append({"terms": {"rule.id": [str(r) for r in exclude_rule_ids]}})
+
+    if filters or must_not:
+        query["query"] = {"bool": {}}
+        if filters:
+            query["query"]["bool"]["must"] = filters
+        if must_not:
+            query["query"]["bool"]["must_not"] = must_not
 
     index = "wazuh-alerts-*,wazuh-archives-*" if include_archives else "wazuh-alerts-*"
     params = {"ignore_unavailable": "true"} if include_archives else {}
@@ -333,6 +345,82 @@ def indexer_pipeline_health(window_from: str = None) -> dict:
         out["healthy"] = None
         out["reason"] = f"health check failed: {e}"
     return out
+
+
+# ── Live telemetry-source health ──────────────────────────────────────────────
+# One OpenSearch clause per Wazuh-backed telemetry source, keyed by the exact
+# `name` stored in telemetry_sources. Identity-provider sources (Okta, Azure AD,
+# etc.) aren't wired into this Wazuh deployment at all, so they're deliberately
+# left out here and stay manually managed via the API.
+_TELEMETRY_SOURCE_QUERIES: dict = {
+    "Sysmon": {"bool": {"should": [
+        {"term": {"rule.groups": "sysmon"}},
+        {"term": {"data.win.system.channel": "Microsoft-Windows-Sysmon/Operational"}},
+    ]}},
+    "Windows Security Event Log": {"term": {"data.win.system.channel": "Security"}},
+    "Windows System Event Log": {"term": {"data.win.system.channel": "System"}},
+    "Windows Application Event Log": {"term": {"data.win.system.channel": "Application"}},
+    "PowerShell Operational Log": {"term": {"data.win.system.channel": "Microsoft-Windows-PowerShell/Operational"}},
+    "Windows Defender Log": {"term": {"data.win.system.channel": "Microsoft-Windows-Windows Defender/Operational"}},
+    "Linux auth.log": {"terms": {"rule.groups": [
+        "pam", "sshd", "authentication_success", "authentication_failed", "invalid_login",
+    ]}},
+    "Linux syslog": {"term": {"rule.groups": "syslog"}},
+    "Linux auditd": {"bool": {"should": [
+        {"term": {"rule.groups": "audit"}},
+        {"term": {"decoder.name": "auditd"}},
+    ]}},
+    "Linux bash history": {"wildcard": {"syscheck.path": "*bash_history*"}},
+}
+
+
+def telemetry_live_status(window: str = "now-24h") -> dict | None:
+    """Query the indexer once for how many events each known telemetry source
+    produced in the lookback window, and when the most recent one landed.
+
+    Returns {source_name: {"count": int, "last_seen": str|None}}. Returns
+    None if the indexer isn't reachable/configured — callers should fall back
+    to the manually-stored status in that case rather than showing a false gap.
+    """
+    indexer_url = os.getenv("INDEXER_URL", "").rstrip("/")
+    if not indexer_url:
+        return None
+    user = os.getenv("INDEXER_USER", "admin")
+    password = os.getenv("INDEXER_PASSWORD", "")
+    verify = os.getenv("INDEXER_VERIFY_SSL", "false").lower() == "true"
+
+    query = {
+        "size": 0,
+        "query": {"range": {"@timestamp": {"gte": window}}},
+        "aggs": {
+            "sources": {
+                "filters": {"filters": _TELEMETRY_SOURCE_QUERIES},
+                "aggs": {
+                    "last_seen": {
+                        "max": {"field": "@timestamp", "format": "strict_date_optional_time"}
+                    }
+                },
+            }
+        },
+    }
+    try:
+        r = requests.post(
+            f"{indexer_url}/wazuh-alerts-*/_search",
+            auth=(user, password), json=query, verify=verify, timeout=20,
+        )
+        if r.status_code != 200:
+            return None
+        buckets = r.json()["aggregations"]["sources"]["buckets"]
+    except Exception:
+        return None
+
+    return {
+        name: {
+            "count": bucket.get("doc_count", 0),
+            "last_seen": (bucket.get("last_seen") or {}).get("value_as_string"),
+        }
+        for name, bucket in buckets.items()
+    }
 
 
 # ── Manager administration (used by the AI rule deployment workflow) ─────────

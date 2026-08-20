@@ -19,6 +19,16 @@
  *      not just what existed at page load.
  */
 (function () {
+  // Remember me: this tab has no session yet but a previous "remember me"
+  // login left one in localStorage — hydrate this tab from it so the user
+  // is signed in automatically instead of being bounced to login.html.
+  if (!sessionStorage.getItem('absega_user') && localStorage.getItem('absega_remember_token')) {
+    sessionStorage.setItem('absega_token', localStorage.getItem('absega_remember_token'));
+    sessionStorage.setItem('absega_user',  localStorage.getItem('absega_remember_user') || '');
+    sessionStorage.setItem('absega_role',  localStorage.getItem('absega_remember_role') || '');
+    sessionStorage.setItem('absega_name',  localStorage.getItem('absega_remember_name') || '');
+  }
+
   var user = sessionStorage.getItem('absega_user');
   if (!user) {
     window.location.href = 'login.html';
@@ -72,6 +82,13 @@
         sessionStorage.removeItem('absega_user');
         sessionStorage.removeItem('absega_role');
         sessionStorage.removeItem('absega_name');
+        // A dead/expired token means the remembered session is no longer
+        // valid either — clear it so the user gets a real login screen
+        // instead of bouncing straight back into the same 401 loop.
+        localStorage.removeItem('absega_remember_token');
+        localStorage.removeItem('absega_remember_user');
+        localStorage.removeItem('absega_remember_role');
+        localStorage.removeItem('absega_remember_name');
         window.location.href = 'login.html';
       } else if (isSameOrigin && res.status === 403) {
         res.clone().json().then(function (body) {
@@ -84,8 +101,29 @@
     });
   };
 
+  var ADMIN_ONLY_NAV = { audit: true, accounts: true };
+
   function applyRoleGating() {
     document.body.setAttribute('data-role', role);
+
+    // Admin-only pages (currently just the Audit Log) — hidden from every
+    // other role, not just Analyst.
+    if (role !== 'admin') {
+      document.querySelectorAll('[data-admin-only]').forEach(function (el) {
+        el.style.display = 'none';
+      });
+      if (typeof window.switchNav === 'function') {
+        var _switchNavAdmin = window.switchNav;
+        window.switchNav = function (el, id) {
+          if (ADMIN_ONLY_NAV[id]) {
+            toast('This page is only available to the Administrator role.');
+            return;
+          }
+          return _switchNavAdmin.apply(this, arguments);
+        };
+      }
+    }
+
     if (role !== 'analyst') return;
 
     // Detections / Telemetry are off-limits for Analyst — hide the nav tabs

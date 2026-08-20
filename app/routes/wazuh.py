@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 
 from app.database import get_connection
 from app.services.ad_catalog import mask_sensitive
+from app.services.audit_service import log_audit
 from app.services.auth_service import ROLE_ADMIN, current_actor, require_read_access, require_write_access
 from app.wazuh_client import (
     fetch_all_rules, fetch_alerts, fetch_agents, indexer_pipeline_health, WazuhError,
@@ -56,154 +57,7 @@ class _ValidateReq(BaseModel):
     target: str = ""
 
 
-WEB_ATTACK_RULES = [
-    {
-        "id": "WEB-SQLI-001",
-        "title": "SQL Injection Attempt in Web Request",
-        "severity": "high",
-        "sigma": """title: SQL Injection Attempt in Web Request
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    selection:
-        full_log|contains:
-            - 'UNION SELECT'
-            - 'UNION ALL SELECT'
-            - 'OR 1=1'
-            - 'AND 1=1'
-            - 'AND 1=2'
-            - 'information_schema'
-            - 'FROM users--'
-    condition: selection
-level: high
-""",
-    },
-    {
-        "id": "WEB-XSS-001",
-        "title": "Cross-Site Scripting (XSS) in Web Request",
-        "severity": "high",
-        "sigma": """title: Cross-Site Scripting (XSS) in Web Request
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    modsecurity_xss:
-        full_log|contains:
-            - 'xss attack detected'
-            - '941100'
-            - '941120'
-            - '941160'
-    raw_payload_xss:
-        full_log|contains:
-            - '%3Cscript%3E'
-            - '%3cscript%3e'
-            - 'alert('
-            - 'onerror='
-            - 'onload='
-            - 'javascript:'
-            - '<script>'
-            - '<script '
-    condition: modsecurity_xss or raw_payload_xss
-level: high
-""",
-    },
-    {
-        "id": "WEB-LFI-001",
-        "title": "Path Traversal / Local File Inclusion",
-        "severity": "high",
-        "sigma": """title: Path Traversal / Local File Inclusion
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    selection:
-        full_log|contains:
-            - '../'
-            - '/etc/passwd'
-            - '/etc/shadow'
-            - '/proc/self'
-            - 'boot.ini'
-            - 'win.ini'
-    condition: selection
-level: high
-""",
-    },
-    {
-        "id": "WEB-CMDI-001",
-        "title": "Command Injection via Web Request",
-        "severity": "critical",
-        "sigma": """title: Command Injection via Web Request
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    sel_exec_post:
-        full_log|contains|all:
-            - '/vulnerabilities/exec'
-            - 'POST'
-    sel_cmdi_patterns:
-        full_log|contains:
-            - '; echo'
-            - '; id'
-            - '; cat '
-            - '; ls'
-            - '; whoami'
-            - '| cat '
-            - '| id'
-            - '$(id)'
-    condition: sel_exec_post or sel_cmdi_patterns
-level: critical
-""",
-    },
-    {
-        "id": "WEB-UPLOAD-001",
-        "title": "Malicious File Upload - PHP Web Shell",
-        "severity": "critical",
-        "sigma": """title: Malicious File Upload - PHP Web Shell
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    sel_upload_post:
-        full_log|contains|all:
-            - '/vulnerabilities/upload'
-            - 'POST'
-    sel_php_content:
-        full_log|contains:
-            - '<?php'
-    sel_php_access:
-        full_log|contains|all:
-            - '/uploads/'
-            - '.php'
-    condition: sel_upload_post or sel_php_content or sel_php_access
-level: critical
-""",
-    },
-    {
-        "id": "WEB-CSRF-001",
-        "title": "Suspicious Password Change via GET Request",
-        "severity": "medium",
-        "sigma": """title: Suspicious Password Change via GET Request
-status: test
-logsource:
-    product: apache
-    category: webserver
-detection:
-    selection:
-        full_log|contains|all:
-            - 'password_new='
-            - 'password_conf='
-    condition: selection
-level: medium
-""",
-    },
-]
+WEB_ATTACK_RULES = []
 
 
 def _normalize_ids(values) -> set:
@@ -342,13 +196,14 @@ def get_alerts(
     archives: bool = False,
     time_from: str = None,
 ):
-    """Fetch live alerts from Wazuh Manager, excluding our custom tagging rules."""
+    """Fetch live alerts from Wazuh Manager, excluding our custom tagging rules.
+
+    The exclusion is applied inside the Indexer query (not after the fact) so
+    that ``limit`` reflects the number of real alerts returned, not the size
+    of the raw fetch before tagging noise is stripped out.
+    """
     try:
-        data = fetch_alerts(limit=limit, offset=offset, level=level, agent_id=agent_id, search=search, include_archives=archives, time_from=time_from)
-        data["alerts"] = [
-            a for a in data.get("alerts", [])
-            if str(a.get("rule_id", "")) not in _ALL_TAG_RULES
-        ]
+        data = fetch_alerts(limit=limit, offset=offset, level=level, agent_id=agent_id, search=search, include_archives=archives, time_from=time_from, exclude_rule_ids=_ALL_TAG_RULES)
         if current_actor(request).role != ROLE_ADMIN:
             data["alerts"] = [mask_sensitive(a) for a in data["alerts"]]
         data["total"] = len(data["alerts"])
@@ -722,14 +577,7 @@ def _modsec_attack_hits(full_log: str):
     return request_line, unquote_plus(str(body)).lower(), " ".join(attack_msgs)
 
 
-_WEB_SIGMA_MAP = {
-    "sqli": "WEB-SQLI-001", "sqli-blind": "WEB-SQLI-001",
-    "xss-dom": "WEB-XSS-001", "xss-reflected": "WEB-XSS-001", "xss-stored": "WEB-XSS-001",
-    "cmdi": "WEB-CMDI-001",
-    "lfi": "WEB-LFI-001",
-    "file-upload": "WEB-UPLOAD-001",
-    "csrf": "WEB-CSRF-001",
-}
+_WEB_SIGMA_MAP = {}
 _WEB_SIGMA_BY_ID = {r["id"]: r for r in WEB_ATTACK_RULES}
 
 
@@ -1344,20 +1192,21 @@ def _delete_imported_wazuh(conn):
     return len(ids)
 
 
-@router.delete("/import-rules", dependencies=[Depends(require_write_access)])
-def delete_wazuh_rules():
+@router.delete("/import-rules")
+def delete_wazuh_rules(actor=Depends(require_write_access)):
     """Delete all previously imported Wazuh rules."""
     conn = get_connection()
     try:
         deleted = _delete_imported_wazuh(conn)
         conn.commit()
+        log_audit(actor, "delete", "imported_wazuh_rules", detail=f"{deleted} detections deleted")
         return {"deleted": deleted}
     finally:
         conn.close()
 
 
-@router.post("/import-rules", dependencies=[Depends(require_write_access)])
-def import_wazuh_rules():
+@router.post("/import-rules")
+def import_wazuh_rules(actor=Depends(require_write_access)):
     """Delete any previously imported Wazuh rules, then import a fresh set."""
     try:
         wazuh_rules = fetch_all_rules()
@@ -1473,6 +1322,9 @@ def import_wazuh_rules():
         conn.commit()
 
         skipped = len(wazuh_rules) - imported
+
+        log_audit(actor, "import", "imported_wazuh_rules",
+                  detail=f"{imported} imported, {deleted} old deleted, {skipped} skipped (no MITRE mapping)")
 
         return {
             "imported": imported,

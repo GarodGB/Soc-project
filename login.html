@@ -41,6 +41,11 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 .field input{width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--border2);border-radius:10px;padding:13px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:all .2s}
 .field input:focus{border-color:rgba(232,40,74,0.5);box-shadow:0 0 0 3px rgba(232,40,74,0.08);background:rgba(0,0,0,0.4)}
 .field input::placeholder{color:var(--text3)}
+.field-pw-wrap{position:relative}
+.field-pw-wrap input{padding-right:44px}
+.pw-toggle{position:absolute;top:50%;right:6px;transform:translateY(-50%);width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:8px;color:var(--text3);cursor:pointer;transition:color .2s,background .2s}
+.pw-toggle:hover{color:var(--text2);background:rgba(255,255,255,0.06)}
+.pw-toggle svg{width:18px;height:18px}
 .field input:-webkit-autofill,
 .field input:-webkit-autofill:hover,
 .field input:-webkit-autofill:focus,
@@ -111,7 +116,15 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
     </div>
     <div class="field">
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      <div class="field-pw-wrap">
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+        <button type="button" class="pw-toggle" id="pw-toggle" onclick="togglePasswordVisibility()" aria-label="Show password" title="Show password">
+          <svg id="pw-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
     </div>
     <div class="row-between">
       <label class="check-row"><input type="checkbox" id="remember"> Remember me</label>
@@ -151,17 +164,23 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex
 <script>
 const API = window.location.origin;
 
+// ── REMEMBER ME: hydrate this tab's session from the persisted one, if any ──
+if(!sessionStorage.getItem('absega_token') && localStorage.getItem('absega_remember_token')){
+  sessionStorage.setItem('absega_token', localStorage.getItem('absega_remember_token'));
+  sessionStorage.setItem('absega_user',  localStorage.getItem('absega_remember_user')  || '');
+  sessionStorage.setItem('absega_role',  localStorage.getItem('absega_remember_role')  || '');
+  sessionStorage.setItem('absega_name',  localStorage.getItem('absega_remember_name')  || '');
+}
+
 // ── REDIRECT IF ALREADY LOGGED IN ──
 if(sessionStorage.getItem('absega_token')){
   window.location.href = 'frontend.html';
 }
 
-// ── REMEMBER ME: pre-fill saved credentials ──
+// ── REMEMBER ME: pre-fill saved email (never the password) ──
 window.addEventListener('DOMContentLoaded', function(){
-  var em = localStorage.getItem('absega_rem_email');
-  var pw = localStorage.getItem('absega_rem_pass');
+  var em = localStorage.getItem('absega_remember_user');
   if(em){ document.getElementById('email').value = em; document.getElementById('remember').checked = true; }
-  if(pw){ document.getElementById('password').value = pw; }
 });
 
 // ── PARTICLE CANVAS ──
@@ -205,6 +224,20 @@ function loop(){
 }
 loop();
 
+// ── SHOW/HIDE PASSWORD ──
+function togglePasswordVisibility(){
+  var input = document.getElementById('password');
+  var btn = document.getElementById('pw-toggle');
+  var icon = document.getElementById('pw-eye-icon');
+  var showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  btn.setAttribute('title', showing ? 'Show password' : 'Hide password');
+  icon.innerHTML = showing
+    ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle>'
+    : '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.87 19.87 0 0 1 4.22-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a19.87 19.87 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+}
+
 // ── LOGIN ──
 function handleLogin(e){
   e.preventDefault();
@@ -221,7 +254,7 @@ function handleLogin(e){
   btn.disabled=true; btn.textContent='Signing in…';
   fetch(API+'/api/auth/login',{
     method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({email:email,password:password})
+    body:JSON.stringify({email:email,password:password,remember:remember})
   })
   .then(function(res){ return res.json().then(function(d){return{ok:res.ok,d:d};}); })
   .then(function(r){
@@ -229,18 +262,25 @@ function handleLogin(e){
       errorEl.textContent=r.d.detail||'Invalid email or password.';
       errorEl.classList.add('show'); btn.disabled=false; btn.textContent='Sign in →'; return;
     }
-    // Save or clear Remember me
+    var token = r.d.access_token||'session', user = r.d.user||email,
+        role  = r.d.role||'analyst',         name = r.d.full_name||email;
+    sessionStorage.setItem('absega_token', token);
+    sessionStorage.setItem('absega_user',  user);
+    sessionStorage.setItem('absega_role',  role);
+    sessionStorage.setItem('absega_name',  name);
+    // Remember me: persist the session (never the password) so this
+    // browser signs back in automatically next visit.
     if(remember){
-      localStorage.setItem('absega_rem_email', email);
-      localStorage.setItem('absega_rem_pass',  password);
+      localStorage.setItem('absega_remember_token', token);
+      localStorage.setItem('absega_remember_user',  user);
+      localStorage.setItem('absega_remember_role',  role);
+      localStorage.setItem('absega_remember_name',  name);
     } else {
-      localStorage.removeItem('absega_rem_email');
-      localStorage.removeItem('absega_rem_pass');
+      localStorage.removeItem('absega_remember_token');
+      localStorage.removeItem('absega_remember_user');
+      localStorage.removeItem('absega_remember_role');
+      localStorage.removeItem('absega_remember_name');
     }
-    sessionStorage.setItem('absega_token', r.d.access_token||'session');
-    sessionStorage.setItem('absega_user',  r.d.user||email);
-    sessionStorage.setItem('absega_role',  r.d.role||'analyst');
-    sessionStorage.setItem('absega_name',  r.d.full_name||email);
     window.location.href='frontend.html';
   })
   .catch(function(){

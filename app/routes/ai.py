@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from app.database import get_connection
-from app.services.auth_service import require_read_access
+from app.services.auth_service import require_read_access, require_write_access
 
 try:
     import anthropic
@@ -389,8 +389,10 @@ Return ONLY a JSON object with these exact fields, no extra text:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.post("/auto-map")
-def auto_map_detection(req: AutoMapRequest):
+def auto_map_detection(req: AutoMapRequest, request: Request):
     """Automatically map a detection rule to its MITRE ATT&CK technique(s)."""
+    if req.save:
+        require_write_access(request)
 
     conn = get_connection()
     try:
@@ -610,7 +612,7 @@ Return ONLY a JSON object, no extra text:
 #  FEATURE 4 — AI VALIDATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@router.post("/validate/{detection_id}")
+@router.post("/validate/{detection_id}", dependencies=[Depends(require_write_access)])
 def ai_validate_detection(detection_id: int):
     """Generate AI-powered test cases and save them to validation_cases."""
 

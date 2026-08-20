@@ -25,8 +25,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 .back{top:24px;left:32px;z-index:100;display:flex;align-items:center;gap:10px;text-decoration:none;transition:opacity .2s}
 .logo { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); margin-right: 32px; }
 .logo-mark { width: 26px; height: 26px; border: 1.5px solid var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--accent); }
-.nav-tabs { display: flex; gap: 2px; align-items: center; position: absolute; left: 50%; transform: translateX(-50%); }
-.nav-tab { padding: 6px 14px; font-size: 12px; font-family: var(--mono); color: var(--text2); cursor: pointer; border-radius: var(--radius); border: none; background: transparent; transition: all .15s; display: flex; align-items: center; gap: 6px; }
+.nav-tabs { display: flex; gap: 2px; align-items: center; flex: 1; min-width: 0; justify-content: center; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.nav-tabs::-webkit-scrollbar { display: none; }
+.nav-tab { padding: 6px 11px; font-size: 12px; font-family: var(--mono); color: var(--text2); cursor: pointer; border-radius: var(--radius); border: none; background: transparent; transition: all .15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
 .nav-tab:hover { color: var(--text); background: var(--bg4); }
 .nav-tab.active { color: var(--accent); background: rgba(232,40,74,.08); }
 .nav-tab .badge { font-size: 10px; padding: 1px 5px; background: var(--bg4); color: var(--text3); border-radius: 3px; }
@@ -366,6 +367,9 @@ tr:hover td { background: rgba(255,255,255,.02); }
     <button class="nav-tab" onclick="switchNav(this,'telemetry')">◎ Telemetry <span class="badge" id="telem-count">0</span></button>
     <button class="nav-tab" onclick="switchNav(this,'advalidation')" id="nav-advalidation">⛨ Validation <span class="badge" id="val-count">0</span></button>
     <button class="nav-tab" onclick="switchNav(this,'coverage')">▣ Coverage</button>
+    <button class="nav-tab" onclick="switchNav(this,'cases')">⚑ Cases <span class="badge" id="cases-count">0</span></button>
+    <button class="nav-tab" onclick="switchNav(this,'audit')" id="nav-audit" data-admin-only>☰ Audit Log</button>
+    <button class="nav-tab" onclick="switchNav(this,'accounts')" id="nav-accounts" data-admin-only>◉ Accounts</button>
   </div>
   <div class="topbar-right">
     <div class="status-dot"></div>
@@ -494,8 +498,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         </div>
         <div style="overflow-x:auto">
           <table class="ovt">
-            <thead><tr><th>Time</th><th>Level</th><th>Rule</th><th>Description</th><th>Agent</th></tr></thead>
-            <tbody id="ov-det-tbody"><tr><td colspan="5" class="ov-empty">Loading...</td></tr></tbody>
+            <thead><tr><th>Time</th><th>Level</th><th>Rule</th><th>Description</th><th>Agent</th><th></th></tr></thead>
+            <tbody id="ov-det-tbody"><tr><td colspan="6" class="ov-empty">Loading...</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -643,6 +647,196 @@ tr:hover td { background: rgba(255,255,255,.02); }
     </div>
   </div>
   <div class="telem-grid" id="telem-grid"><div style="color:var(--text3);font-family:var(--mono);font-size:12px">Loading sources...</div></div>
+</div>
+
+<!-- AUDIT LOG (admin only) -->
+<div id="panel-audit" class="panel" style="padding:24px">
+  <div class="page-header">
+    <div><div class="page-title">Audit Log</div><div class="page-subtitle">Who did what to which resource — approve, reject, deploy, save, delete</div></div>
+    <div class="page-actions">
+      <input class="search-input" id="audit-filter-actor" placeholder="Filter by actor email…" oninput="renderAuditLog()">
+      <button class="btn btn-ghost" onclick="renderAuditLog()">↻ Refresh</button>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="ovt">
+      <thead><tr><th>Time</th><th>Actor</th><th>Role</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+      <tbody id="audit-tbody"><tr><td colspan="6" class="ov-empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ACCOUNTS (admin only) -->
+<div id="panel-accounts" class="panel" style="padding:24px">
+  <div class="page-header">
+    <div><div class="page-title">Accounts</div><div class="page-subtitle">Create and review platform accounts — Admin, Engineer, Analyst</div></div>
+    <div class="page-actions">
+      <button class="btn btn-accent" onclick="openNewAccountModal()">+ Create Account</button>
+      <button class="btn btn-ghost" onclick="loadAccounts()">↻ Refresh</button>
+    </div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="ovt">
+      <thead><tr><th>Email</th><th>Role</th><th>Full Name</th><th>Created</th></tr></thead>
+      <tbody id="accounts-tbody"><tr><td colspan="4" class="ov-empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── New Account Modal ── -->
+<div class="modal-overlay" id="account-new-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Create Account</span>
+      <button onclick="closeNewAccountModal()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="error" id="account-new-error" style="display:none;margin-bottom:14px;background:rgba(232,40,74,0.08);border:1px solid rgba(232,40,74,0.3);border-radius:8px;padding:10px 12px;font-size:12px;color:#e8284a"></div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="account-new-email" placeholder="e.g. new.engineer@absega.local">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Full Name (optional)</label>
+        <input class="form-input" id="account-new-name" placeholder="e.g. Jane Doe">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="password" id="account-new-password" placeholder="At least 6 characters">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-select" id="account-new-role">
+          <option value="analyst">Analyst</option>
+          <option value="engineer">Engineer</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeNewAccountModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="createAccount()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- CASES -->
+<div id="panel-cases" class="panel" style="padding:24px">
+  <div class="page-header">
+    <div><div class="page-title">Case Management</div><div class="page-subtitle">Triage and track alert investigations — open, assign, work, close</div></div>
+    <div class="page-actions">
+      <button class="btn btn-accent" onclick="openNewCaseModal()">+ New Case</button>
+      <button class="btn btn-ghost" onclick="loadCases()">↻ Refresh</button>
+    </div>
+  </div>
+  <div class="ov-acts" style="margin:0 0 16px">
+    <button class="ov-ab ov-as" id="case-filter-all" onclick="setCaseFilter('')">All</button>
+    <button class="ov-ab ov-as" id="case-filter-open" onclick="setCaseFilter('open')">Open</button>
+    <button class="ov-ab ov-as" id="case-filter-investigating" onclick="setCaseFilter('investigating')">Investigating</button>
+    <button class="ov-ab ov-as" id="case-filter-closed" onclick="setCaseFilter('closed')">Closed</button>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="ovt">
+      <thead><tr><th>Title</th><th>Status</th><th>Assigned</th><th>Alert</th><th>Created</th></tr></thead>
+      <tbody id="cases-tbody"><tr><td colspan="5" class="ov-empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── New Case Modal ── -->
+<div class="modal-overlay" id="case-new-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">New Case</span>
+      <button onclick="closeNewCaseModal()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input class="form-input" id="case-new-title" placeholder="e.g. Suspicious brute force attempt">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alert Rule ID (optional)</label>
+        <input class="form-input" id="case-new-rule-id" placeholder="e.g. 110008">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alert Description (optional)</label>
+        <input class="form-input" id="case-new-alert-desc" placeholder="Copy from the originating alert">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Agent (optional)</label>
+        <input class="form-input" id="case-new-agent" placeholder="e.g. UbuntuLinux">
+      </div>
+      <div class="form-group">
+        <label class="check-row" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="case-new-assign-self" checked> Assign to me</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeNewCaseModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="createCase()">Create Case</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Case Detail Modal ── -->
+<div class="modal-overlay" id="case-detail-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header">
+      <span class="modal-title" id="case-detail-title">Case</span>
+      <button onclick="closeCaseDetail()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="case-detail-meta" style="font-size:12px;font-family:var(--mono);color:var(--text2);margin-bottom:14px"></div>
+
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <div style="display:flex;gap:8px">
+          <select class="form-select" id="case-detail-status">
+            <option value="open">Open</option>
+            <option value="investigating">Investigating</option>
+            <option value="closed">Closed</option>
+          </select>
+          <button class="btn btn-ghost" onclick="updateCaseStatus()">Update</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Assignment</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span id="case-detail-assigned" style="font-size:12px;font-family:var(--mono);color:var(--text2)">Unassigned</span>
+          <button class="btn btn-ghost" onclick="assignCaseToMe()">Assign to me</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <select class="form-select" id="case-detail-assignee"><option value="">Loading accounts…</option></select>
+          <button class="btn btn-ghost" onclick="assignCaseToSelected()">Assign</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Close with disposition</label>
+        <div style="display:flex;gap:8px">
+          <select class="form-select" id="case-detail-disposition">
+            <option value="true_positive">True Positive</option>
+            <option value="false_positive">False Positive</option>
+            <option value="benign">Benign</option>
+            <option value="duplicate">Duplicate</option>
+            <option value="other">Other</option>
+          </select>
+          <button class="btn btn-accent" onclick="closeCaseWithDisposition()">Close Case</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <div id="case-detail-notes" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;margin-bottom:8px"></div>
+        <textarea class="form-textarea" id="case-detail-new-note" placeholder="Add an investigation note…"></textarea>
+        <button class="btn btn-ghost" style="margin-top:6px" onclick="addCaseNote()">Add Note</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeCaseDetail()">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- AD / WINDOWS / WEB / LINUX VALIDATION -->
@@ -947,15 +1141,15 @@ async function renderOvTable(){
   var tbody=document.getElementById('ov-det-tbody');
   var badge=document.getElementById('ov-det-badge');
   if(!tbody)return;
-  tbody.innerHTML='<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading alerts...</td></tr>';
+  tbody.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading alerts...</td></tr>';
   try {
     var res = await fetch('/api/wazuh/alerts?limit=10');
-    if(!res.ok){tbody.innerHTML='<tr><td colspan="5" class="ov-empty">Could not load alerts.</td></tr>';return;}
+    if(!res.ok){tbody.innerHTML='<tr><td colspan="6" class="ov-empty">Could not load alerts.</td></tr>';return;}
     var d = await res.json();
     var alerts = d.alerts||[];
     if(badge)badge.textContent=alerts.length+' alerts';
     tbody.innerHTML='';
-    if(!alerts.length){tbody.innerHTML='<tr><td colspan="5" class="ov-empty">No alerts yet.</td></tr>';return;}
+    if(!alerts.length){tbody.innerHTML='<tr><td colspan="6" class="ov-empty">No alerts yet.</td></tr>';return;}
     for(var i=0;i<alerts.length;i++){
       var a=alerts[i];
       var lvl=a.rule_level||0;
@@ -968,10 +1162,319 @@ async function renderOvTable(){
         +'<td><span style="font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:3px;background:'+lvlBg+';color:'+lvlCol+'">'+lvlLbl+' '+lvl+'</span></td>'
         +'<td style="font-size:11px;font-family:var(--mono);color:var(--text3)">'+(a.rule_id||'--')+'</td>'
         +'<td style="font-family:var(--mono);color:var(--text);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(a.rule_description||'--')+'</td>'
-        +'<td style="font-size:11px;font-family:var(--mono);color:var(--text2)">'+(a.agent_name||'--')+'</td>';
+        +'<td style="font-size:11px;font-family:var(--mono);color:var(--text2)">'+(a.agent_name||'--')+'</td>'
+        +'<td></td>';
+      var btn = document.createElement('button');
+      btn.className = 'btn btn-ghost';
+      btn.style.cssText = 'font-size:10px;padding:3px 8px;white-space:nowrap';
+      btn.textContent = 'Open Case';
+      btn.onclick = (function(ruleId, desc, agent){ return function(e){ e.stopPropagation(); openCaseFromAlert(ruleId, desc, agent); }; })(a.rule_id, a.rule_description, a.agent_name);
+      tr.lastElementChild.appendChild(btn);
       tbody.appendChild(tr);
     }
-  } catch(e){tbody.innerHTML='<tr><td colspan="5" class="ov-empty">Error loading alerts.</td></tr>';}
+  } catch(e){tbody.innerHTML='<tr><td colspan="6" class="ov-empty">Error loading alerts.</td></tr>';}
+}
+async function renderAuditLog(){
+  var tbody=document.getElementById('audit-tbody');
+  if(!tbody)return;
+  var actorFilter=(document.getElementById('audit-filter-actor')||{}).value||'';
+  tbody.innerHTML='<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading audit log...</td></tr>';
+  try{
+    var url='/api/audit-log/?limit=200'+(actorFilter?'&actor='+encodeURIComponent(actorFilter):'');
+    var res=await fetch(url);
+    if(!res.ok){tbody.innerHTML='<tr><td colspan="6" class="ov-empty">Could not load audit log (admin only).</td></tr>';return;}
+    var d=await res.json();
+    var items=d.items||[];
+    if(!items.length){tbody.innerHTML='<tr><td colspan="6" class="ov-empty">No audit entries yet.</td></tr>';return;}
+    tbody.innerHTML='';
+    for(var i=0;i<items.length;i++){
+      var a=items[i];
+      var ts=a.created_at?new Date(a.created_at).toLocaleString():'--';
+      var actionCol=/delete|reject|rollback|fail/i.test(a.action)?'#ef4444':/create|approve|deploy/i.test(a.action)?'#10b981':'#94a3b8';
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td style="font-size:11px;font-family:var(--mono);color:var(--text3);white-space:nowrap">'+ts+'</td>'
+        +'<td style="font-size:11px;font-family:var(--mono);color:var(--text)">'+(a.actor_email||'--')+'</td>'
+        +'<td style="font-size:11px;font-family:var(--mono);color:var(--text2)">'+(a.actor_role||'--')+'</td>'
+        +'<td><span style="font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:3px;background:'+actionCol+'22;color:'+actionCol+'">'+(a.action||'--')+'</span></td>'
+        +'<td style="font-size:11px;font-family:var(--mono);color:var(--text3)">'+(a.target_type||'--')+(a.target_id?' #'+a.target_id:'')+'</td>'
+        +'<td style="font-family:var(--mono);color:var(--text2);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(a.detail||'')+'</td>';
+      tbody.appendChild(tr);
+    }
+  }catch(e){tbody.innerHTML='<tr><td colspan="6" class="ov-empty">Error loading audit log.</td></tr>';}
+}
+
+// ── Accounts (admin only) ───────────────────────────────────────────────────
+async function loadAccounts(){
+  var tbody = document.getElementById('accounts-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading accounts...</td></tr>';
+  try{
+    var res = await fetch('/api/auth/users');
+    if(!res.ok){ tbody.innerHTML = '<tr><td colspan="4" class="ov-empty">Could not load accounts (admin only).</td></tr>'; return; }
+    var users = await res.json();
+    if(!users.length){ tbody.innerHTML = '<tr><td colspan="4" class="ov-empty">No accounts found.</td></tr>'; return; }
+    var roleColor = {admin:'#e8284a', engineer:'#0ea5e9', analyst:'#94a3b8'};
+    tbody.innerHTML = users.map(function(u){
+      var col = roleColor[u.role] || '#94a3b8';
+      var created = u.created_at ? new Date(u.created_at).toLocaleString() : '--';
+      return '<tr>'
+        + '<td style="font-family:var(--mono);color:var(--text)">'+u.email+'</td>'
+        + '<td><span style="font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:3px;background:'+col+'22;color:'+col+'">'+u.role.toUpperCase()+'</span></td>'
+        + '<td style="font-size:12px;color:var(--text2)">'+(u.full_name||'—')+'</td>'
+        + '<td style="font-size:11px;font-family:var(--mono);color:var(--text3);white-space:nowrap">'+created+'</td>'
+        + '</tr>';
+    }).join('');
+  }catch(e){ tbody.innerHTML = '<tr><td colspan="4" class="ov-empty">Error loading accounts.</td></tr>'; }
+}
+
+function openNewAccountModal(){
+  document.getElementById('account-new-email').value = '';
+  document.getElementById('account-new-name').value = '';
+  document.getElementById('account-new-password').value = '';
+  document.getElementById('account-new-role').value = 'analyst';
+  var errEl = document.getElementById('account-new-error');
+  errEl.style.display = 'none'; errEl.textContent = '';
+  document.getElementById('account-new-modal').classList.add('open');
+}
+function closeNewAccountModal(){ document.getElementById('account-new-modal').classList.remove('open'); }
+
+async function createAccount(){
+  var email = document.getElementById('account-new-email').value.trim();
+  var fullName = document.getElementById('account-new-name').value.trim();
+  var password = document.getElementById('account-new-password').value;
+  var role = document.getElementById('account-new-role').value;
+  var errEl = document.getElementById('account-new-error');
+  errEl.style.display = 'none'; errEl.textContent = '';
+
+  if(!email || !password){
+    errEl.textContent = 'Email and password are required.';
+    errEl.style.display = 'block';
+    return;
+  }
+  try{
+    var res = await fetch('/api/auth/users', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: email, password: password, role: role, full_name: fullName || null})
+    });
+    var d = await res.json().catch(function(){ return {}; });
+    if(!res.ok){
+      errEl.textContent = d.detail || 'Could not create account.';
+      errEl.style.display = 'block';
+      return;
+    }
+    closeNewAccountModal();
+    CASE_ASSIGNEE_OPTIONS = null; // new account should show up next time the case-assign dropdown loads
+    await loadAccounts();
+  }catch(e){
+    errEl.textContent = 'Could not reach server.';
+    errEl.style.display = 'block';
+  }
+}
+
+// ── Cases ────────────────────────────────────────────────────────────────────
+var CASE_FILTER = '';
+var CURRENT_CASE_ID = null;
+var CASE_STATUS_COLOR = {open:'#0ea5e9', investigating:'#f59e0b', closed:'#6b7280'};
+
+function setCaseFilter(status){
+  CASE_FILTER = status;
+  ['all','open','investigating','closed'].forEach(function(k){
+    var el = document.getElementById('case-filter-'+k);
+    if(el) el.classList.toggle('ov-ap', (k==='all' && status==='') || k===status);
+  });
+  loadCases();
+}
+
+async function refreshCasesBadge(knownItems){
+  var badge = document.getElementById('cases-count');
+  if(!badge) return;
+  if(knownItems){ badge.textContent = knownItems.length; return; }
+  try{
+    var res = await fetch('/api/cases/?limit=200');
+    if(res.ok){ var items = await res.json(); badge.textContent = items.length; }
+  }catch(e){}
+}
+
+async function loadCases(){
+  var tbody = document.getElementById('cases-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading cases...</td></tr>';
+  try{
+    var url = '/api/cases/?limit=200' + (CASE_FILTER ? '&status='+encodeURIComponent(CASE_FILTER) : '');
+    var res = await fetch(url);
+    if(!res.ok){ tbody.innerHTML = '<tr><td colspan="5" class="ov-empty">Could not load cases.</td></tr>'; return; }
+    var items = await res.json();
+    refreshCasesBadge(CASE_FILTER ? null : items);
+    if(!items.length){ tbody.innerHTML = '<tr><td colspan="5" class="ov-empty">No cases yet. Open one from an alert or click + New Case.</td></tr>'; return; }
+    tbody.innerHTML = '';
+    for(var i=0;i<items.length;i++){
+      var c = items[i];
+      var col = CASE_STATUS_COLOR[c.status] || '#94a3b8';
+      var created = c.created_at ? new Date(c.created_at).toLocaleString() : '--';
+      var alertTxt = c.alert_description || (c.alert_rule_id ? ('Rule '+c.alert_rule_id) : '—');
+      var tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.onclick = (function(caseId){ return function(){ openCaseDetail(caseId); }; })(c.id);
+      tr.innerHTML = '<td style="font-family:var(--mono);color:var(--text)">'+(c.title||'')+'</td>'
+        + '<td><span style="font-size:10px;font-family:var(--mono);padding:2px 6px;border-radius:3px;background:'+col+'22;color:'+col+'">'+c.status.toUpperCase()+'</span></td>'
+        + '<td style="font-size:11px;font-family:var(--mono);color:var(--text2)">'+(c.assigned_to||'Unassigned')+'</td>'
+        + '<td style="font-size:11px;font-family:var(--mono);color:var(--text3);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+alertTxt+'</td>'
+        + '<td style="font-size:11px;font-family:var(--mono);color:var(--text3);white-space:nowrap">'+created+'</td>';
+      tbody.appendChild(tr);
+    }
+  }catch(e){ tbody.innerHTML = '<tr><td colspan="5" class="ov-empty">Error loading cases.</td></tr>'; }
+}
+
+function openNewCaseModal(prefill){
+  document.getElementById('case-new-title').value = (prefill && prefill.title) || '';
+  document.getElementById('case-new-rule-id').value = (prefill && prefill.alert_rule_id) || '';
+  document.getElementById('case-new-alert-desc').value = (prefill && prefill.alert_description) || '';
+  document.getElementById('case-new-agent').value = (prefill && prefill.alert_agent_name) || '';
+  document.getElementById('case-new-assign-self').checked = true;
+  document.getElementById('case-new-modal').classList.add('open');
+}
+function closeNewCaseModal(){ document.getElementById('case-new-modal').classList.remove('open'); }
+
+async function createCase(){
+  var title = document.getElementById('case-new-title').value.trim();
+  if(!title){ alert('Title is required.'); return; }
+  var body = {
+    title: title,
+    alert_rule_id: document.getElementById('case-new-rule-id').value.trim() || null,
+    alert_description: document.getElementById('case-new-alert-desc').value.trim() || null,
+    alert_agent_name: document.getElementById('case-new-agent').value.trim() || null,
+    assign_to_self: document.getElementById('case-new-assign-self').checked,
+  };
+  try{
+    var res = await fetch('/api/cases/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    if(!res.ok){ var d = await res.json().catch(function(){return {};}); alert(d.detail || 'Could not create case.'); return; }
+    closeNewCaseModal();
+    await loadCases();
+  }catch(e){ alert('Could not reach server.'); }
+}
+
+var CASE_ASSIGNEE_OPTIONS = null;
+async function ensureAssigneeOptionsLoaded(){
+  var sel = document.getElementById('case-detail-assignee');
+  if(!sel) return;
+  if(CASE_ASSIGNEE_OPTIONS){
+    sel.innerHTML = CASE_ASSIGNEE_OPTIONS;
+    return;
+  }
+  try{
+    var res = await fetch('/api/auth/users');
+    var users = res.ok ? await res.json() : [];
+    CASE_ASSIGNEE_OPTIONS = '<option value="">Select an account…</option>'
+      + users.map(function(u){ return '<option value="'+u.email+'">'+u.email+' ('+u.role+')</option>'; }).join('');
+    sel.innerHTML = CASE_ASSIGNEE_OPTIONS;
+  }catch(e){
+    sel.innerHTML = '<option value="">Could not load accounts</option>';
+  }
+}
+
+async function openCaseDetail(caseId){
+  CURRENT_CASE_ID = caseId;
+  try{
+    await ensureAssigneeOptionsLoaded();
+    var res = await fetch('/api/cases/'+caseId);
+    if(!res.ok){ alert('Could not load case.'); return; }
+    var c = await res.json();
+    renderCaseDetail(c);
+    document.getElementById('case-detail-modal').classList.add('open');
+  }catch(e){ alert('Could not reach server.'); }
+}
+function closeCaseDetail(){ document.getElementById('case-detail-modal').classList.remove('open'); CURRENT_CASE_ID = null; }
+
+function renderCaseDetail(c){
+  document.getElementById('case-detail-title').textContent = '#'+c.id+' — '+c.title;
+  var alertLine = c.alert_description || (c.alert_rule_id ? ('Rule '+c.alert_rule_id) : 'No linked alert');
+  document.getElementById('case-detail-meta').innerHTML =
+    'Alert: '+alertLine+(c.alert_agent_name ? ' · Agent: '+c.alert_agent_name : '')+'<br>'+
+    'Created by '+c.created_by+' · '+(c.created_at ? new Date(c.created_at).toLocaleString() : '--')+
+    (c.disposition ? ('<br>Disposition: '+c.disposition) : '');
+  document.getElementById('case-detail-status').value = c.status;
+  document.getElementById('case-detail-assigned').textContent = c.assigned_to || 'Unassigned';
+  var assigneeSel = document.getElementById('case-detail-assignee');
+  if(assigneeSel) assigneeSel.value = c.assigned_to || '';
+  var notesEl = document.getElementById('case-detail-notes');
+  var notes = c.notes || [];
+  notesEl.innerHTML = notes.length ? notes.map(function(n){
+    return '<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;padding:8px 10px">'
+      + '<div style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-bottom:3px">'+n.author+' · '+new Date(n.created_at).toLocaleString()+'</div>'
+      + '<div style="font-size:12px;color:var(--text1)">'+n.note+'</div></div>';
+  }).join('') : '<div style="color:var(--text3);font-size:12px;font-family:var(--mono)">No notes yet.</div>';
+}
+
+async function updateCaseStatus(){
+  if(!CURRENT_CASE_ID) return;
+  var status = document.getElementById('case-detail-status').value;
+  try{
+    var res = await fetch('/api/cases/'+CURRENT_CASE_ID, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:status})});
+    if(!res.ok){ var d = await res.json().catch(function(){return {};}); alert(d.detail || 'Could not update case.'); return; }
+    var c = await res.json();
+    renderCaseDetail(c);
+    loadCases();
+  }catch(e){ alert('Could not reach server.'); }
+}
+
+async function assignCaseToMe(){
+  if(!CURRENT_CASE_ID) return;
+  try{
+    var res = await fetch('/api/cases/'+CURRENT_CASE_ID+'/assign', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})});
+    if(!res.ok){ var d = await res.json().catch(function(){return {};}); alert(d.detail || 'Could not assign case.'); return; }
+    var c = await res.json();
+    renderCaseDetail(c);
+    loadCases();
+  }catch(e){ alert('Could not reach server.'); }
+}
+
+async function assignCaseToSelected(){
+  if(!CURRENT_CASE_ID) return;
+  var assignee = document.getElementById('case-detail-assignee').value;
+  if(!assignee){ alert('Choose an account to assign this case to.'); return; }
+  try{
+    var res = await fetch('/api/cases/'+CURRENT_CASE_ID+'/assign', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({assignee:assignee})});
+    if(!res.ok){ var d = await res.json().catch(function(){return {};}); alert(d.detail || 'Could not assign case.'); return; }
+    var c = await res.json();
+    renderCaseDetail(c);
+    loadCases();
+  }catch(e){ alert('Could not reach server.'); }
+}
+
+async function closeCaseWithDisposition(){
+  if(!CURRENT_CASE_ID) return;
+  var disposition = document.getElementById('case-detail-disposition').value;
+  try{
+    var res = await fetch('/api/cases/'+CURRENT_CASE_ID+'/close', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({disposition:disposition})});
+    if(!res.ok){ var d = await res.json().catch(function(){return {};}); alert(d.detail || 'Could not close case.'); return; }
+    var c = await res.json();
+    renderCaseDetail(c);
+    loadCases();
+  }catch(e){ alert('Could not reach server.'); }
+}
+
+async function addCaseNote(){
+  if(!CURRENT_CASE_ID) return;
+  var el = document.getElementById('case-detail-new-note');
+  var note = el.value.trim();
+  if(!note) return;
+  try{
+    var res = await fetch('/api/cases/'+CURRENT_CASE_ID+'/notes', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({note:note})});
+    if(!res.ok){ var d = await res.json().catch(function(){return {};}); alert(d.detail || 'Could not add note.'); return; }
+    var c = await res.json();
+    el.value = '';
+    renderCaseDetail(c);
+  }catch(e){ alert('Could not reach server.'); }
+}
+
+// Turn a live alert (Overview → Recent Live Alerts) directly into a case.
+function openCaseFromAlert(ruleId, description, agentName){
+  openNewCaseModal({
+    title: (description || 'Alert').slice(0, 120),
+    alert_rule_id: ruleId,
+    alert_description: description,
+    alert_agent_name: agentName,
+  });
 }
 function renderOvTelem(data){var el=document.getElementById('ov-telem-list');if(!el)return;if(!data.length){el.innerHTML='<div class="ov-empty">No telemetry yet.</div>';return;}el.innerHTML='';for(var i=0;i<data.length;i++){var t=data[i];var col=t.status==='healthy'?'#10b981':t.status==='degraded'?'#f59e0b':'#ef4444';var bg=t.status==='healthy'?'rgba(16,185,129,0.12)':t.status==='degraded'?'rgba(245,158,11,0.12)':'rgba(239,68,68,0.12)';var lbl=t.status==='healthy'?'OK':t.status==='degraded'?'DEG':'DOWN';var div=document.createElement('div');div.className='ov-ti';div.innerHTML='<div class="ov-td" style="background:'+col+'"></div><div style="flex:1;min-width:0"><div class="ov-tn">'+t.name+'</div><div class="ov-tr">'+(t.event_rate||'N/A')+'</div></div><span class="ov-tb" style="background:'+bg+';color:'+col+'">'+lbl+'</span>';el.appendChild(div);}}
 setInterval(function(){var cl=document.getElementById('ov-clock');if(cl)cl.textContent=new Date().toLocaleTimeString();var rf=document.getElementById('ov-refresh');if(rf)rf.textContent='Updated '+new Date().toLocaleTimeString();},1000);
@@ -1025,6 +1528,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderAttackMatrix();
   setLoaderStatus('Ready');
 
+  // Nav badge counts for tabs that aren't the active one on load — fire in
+  // the background so they don't hold up the loading screen. Without this,
+  // the Validation/Cases badges stayed at their hardcoded "0" until the user
+  // actually opened that tab, since those are the only two whose load
+  // function was previously wired to switchNav instead of also running here.
+  loadADValidation();
+  loadCases();
+
   // Small delay so "Ready" is visible briefly, then fade out
   setTimeout(hideLoader, 250);
 });
@@ -1040,6 +1551,10 @@ function logout() {
   sessionStorage.removeItem('absega_user');
   sessionStorage.removeItem('absega_role');
   sessionStorage.removeItem('absega_name');
+  localStorage.removeItem('absega_remember_token');
+  localStorage.removeItem('absega_remember_user');
+  localStorage.removeItem('absega_remember_role');
+  localStorage.removeItem('absega_remember_name');
   window.location.href = 'login.html';
 }
 
@@ -1110,6 +1625,9 @@ function switchNav(el, id) {
   }
 
   if (id === 'testrunner' && ALL_DETECTIONS.length > 0) renderTrRuleList(ALL_DETECTIONS.slice(0, 80));
+  if (id === 'audit') renderAuditLog();
+  if (id === 'accounts') loadAccounts();
+  if (id === 'cases') loadCases();
 }
 
 function filterSidebar(el, filter) {
@@ -1397,7 +1915,7 @@ function renderTelemetry(data) {
       <div class="telem-name">${t.name}</div>
       <div class="telem-source">${t.platform||''}</div>
       <div class="telem-meta">
-        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${t.event_rate||'N/A'}</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">${t.event_rate||'N/A'}${t.live?' <span style="color:var(--accent)" title="Computed live from the Wazuh indexer, last 24h">● LIVE</span>':''}</span>
         <span class="status-pill sp-${t.status==='healthy'?'active':t.status==='degraded'?'testing':'disabled'}">${t.status}</span>
       </div>
       ${hasDetails ? `<div style="margin-top:8px;font-size:10px;color:${detColor};font-weight:600;text-transform:uppercase;letter-spacing:.5px">${detVal} value · ${t.details.critical_event_ids.length} Event IDs</div>
@@ -3508,7 +4026,14 @@ async function wlLoad(surface) {
   if (st.abort) st.abort.abort();
   st.abort = ('AbortController' in window) ? new AbortController() : null;
 
-  tbody.innerHTML = '<tr><td colspan="7" style="padding:30px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading...</td></tr>';
+  // Only blank the table on the very first load. On auto-refresh ticks the
+  // table already has rows showing — clearing to "Loading..." here caused
+  // the visible flicker (history disappears, then reappears with the new
+  // entry) every 15s while Auto is on. Keep the existing rows on screen
+  // until the fresh ones are ready to replace them in one shot.
+  if (!st.alerts.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:30px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--mono)">Loading...</td></tr>';
+  }
 
   try {
     let url = API + '/api/wazuh/alerts?limit=100&level=' + c.minLevel;

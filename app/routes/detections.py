@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_connection
 from app.services.auth_service import require_read_access, require_write_access
+from app.services.audit_service import log_audit
 
 router = APIRouter(dependencies=[Depends(require_read_access)])
 
@@ -123,8 +124,8 @@ def get_detection(detection_id: str):
         conn.close()
 
 
-@router.post("/", status_code=201, dependencies=[Depends(require_write_access)])
-def create_detection(detection: Detection):
+@router.post("/", status_code=201)
+def create_detection(detection: Detection, actor=Depends(require_write_access)):
     conn = get_connection()
     try:
         cur = conn.execute("""
@@ -146,13 +147,14 @@ def create_detection(detection: Detection):
         ))
         new_id = cur.fetchone()[0]
         conn.commit()
+        log_audit(actor, "create", "detection", new_id, detail=detection.title)
         return {"message": "Detection created successfully", "id": new_id}
     finally:
         conn.close()
 
 
-@router.put("/{detection_id}", dependencies=[Depends(require_write_access)])
-def update_detection(detection_id: str, detection: Detection):
+@router.put("/{detection_id}")
+def update_detection(detection_id: str, detection: Detection, actor=Depends(require_write_access)):
     conn = get_connection()
     try:
         cur = conn.execute(
@@ -180,19 +182,21 @@ def update_detection(detection_id: str, detection: Detection):
             detection_id,
         ))
         conn.commit()
+        log_audit(actor, "update", "detection", detection_id, detail=detection.title)
         return {"message": "Detection updated successfully"}
     finally:
         conn.close()
 
 
-@router.delete("/{detection_id}", dependencies=[Depends(require_write_access)])
-def delete_detection(detection_id: str):
+@router.delete("/{detection_id}")
+def delete_detection(detection_id: str, actor=Depends(require_write_access)):
     conn = get_connection()
     try:
         cur = conn.execute(
-            "SELECT detection_id FROM detections WHERE detection_id = %s", (detection_id,)
+            "SELECT detection_id, title FROM detections WHERE detection_id = %s", (detection_id,)
         )
-        if not cur.fetchone():
+        row = cur.fetchone()
+        if not row:
             raise HTTPException(status_code=404, detail="Detection not found")
 
         # Remove child rows first (FK-like cleanup)
@@ -201,6 +205,7 @@ def delete_detection(detection_id: str):
         conn.execute("DELETE FROM validation_cases WHERE detection_id = %s", (detection_id,))
         conn.execute("DELETE FROM detections WHERE detection_id = %s", (detection_id,))
         conn.commit()
+        log_audit(actor, "delete", "detection", detection_id, detail=dict(row).get("title"))
         return {"message": "Detection deleted successfully"}
     finally:
         conn.close()
