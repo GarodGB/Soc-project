@@ -33,6 +33,7 @@ class CaseCreate(BaseModel):
     alert_agent_name: Optional[str] = None
     alert_timestamp: Optional[str] = None
     assign_to_self: bool = False
+    assignee: Optional[str] = None  # explicit email; takes priority over assign_to_self
 
 
 class CaseUpdate(BaseModel):
@@ -110,7 +111,8 @@ def get_case(case_id: int):
 @router.post("/", status_code=201)
 def create_case(body: CaseCreate, actor=Depends(require_read_access)):
     now = _now()
-    assigned_to = actor.email if body.assign_to_self else None
+    explicit_assignee = (body.assignee or "").strip()
+    assigned_to = explicit_assignee or (actor.email if body.assign_to_self else None)
     conn = get_connection()
     try:
         cur = conn.execute(

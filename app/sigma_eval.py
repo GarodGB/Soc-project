@@ -127,10 +127,35 @@ def _drop_invalid_tags(raw_yaml: str) -> str:
     return yaml.safe_dump(doc, sort_keys=False)
 
 
+def _coerce_scalar_metadata(raw_yaml: str) -> str:
+    """Fix metadata fields a model drafted as a YAML list instead of a plain
+    string (e.g. ``author: [REDACTED]``, which YAML parses as ``["REDACTED"]``
+    rather than the literal string). pySigma's strict schema requires these
+    fields to be strings, so one unquoted-looking value would otherwise fail
+    the whole rule even though the detection logic itself is fine.
+    """
+    try:
+        doc = yaml.safe_load(raw_yaml)
+    except yaml.YAMLError:
+        return raw_yaml
+    if not isinstance(doc, dict):
+        return raw_yaml
+    changed = False
+    for field in ("author", "title", "id", "status", "description", "level"):
+        value = doc.get(field)
+        if isinstance(value, list):
+            doc[field] = ", ".join(str(v) for v in value)
+            changed = True
+    if not changed:
+        return raw_yaml
+    return yaml.safe_dump(doc, sort_keys=False)
+
+
 @lru_cache(maxsize=4096)
 def _parse_rule_cached(raw_yaml: str):
     """Parse + condition-resolve a rule once, then reuse for every sample run."""
     raw_yaml = _drop_invalid_tags(raw_yaml)
+    raw_yaml = _coerce_scalar_metadata(raw_yaml)
     raw_yaml = _normalize_condition_syntax(raw_yaml)
     try:
         collection = SigmaCollection.from_yaml(raw_yaml)

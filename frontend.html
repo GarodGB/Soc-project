@@ -768,7 +768,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
         <input class="form-input" id="case-new-agent" placeholder="e.g. UbuntuLinux">
       </div>
       <div class="form-group">
-        <label class="check-row" style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="case-new-assign-self" checked> Assign to me</label>
+        <label class="form-label">Assign to</label>
+        <select class="form-select" id="case-new-assignee"><option value="">Loading accounts…</option></select>
       </div>
     </div>
     <div class="modal-footer">
@@ -1325,13 +1326,15 @@ async function loadCases(){
   }catch(e){ tbody.innerHTML = '<tr><td colspan="5" class="ov-empty">Error loading cases.</td></tr>'; }
 }
 
-function openNewCaseModal(prefill){
+async function openNewCaseModal(prefill){
   document.getElementById('case-new-title').value = (prefill && prefill.title) || '';
   document.getElementById('case-new-rule-id').value = (prefill && prefill.alert_rule_id) || '';
   document.getElementById('case-new-alert-desc').value = (prefill && prefill.alert_description) || '';
   document.getElementById('case-new-agent').value = (prefill && prefill.alert_agent_name) || '';
-  document.getElementById('case-new-assign-self').checked = true;
   document.getElementById('case-new-modal').classList.add('open');
+  await ensureAssigneeOptionsLoaded('case-new-assignee');
+  var sel = document.getElementById('case-new-assignee');
+  if(sel && sel.options.length){ sel.options[0].textContent = 'None (unassigned)'; sel.value = ''; }
 }
 function closeNewCaseModal(){ document.getElementById('case-new-modal').classList.remove('open'); }
 
@@ -1343,7 +1346,7 @@ async function createCase(){
     alert_rule_id: document.getElementById('case-new-rule-id').value.trim() || null,
     alert_description: document.getElementById('case-new-alert-desc').value.trim() || null,
     alert_agent_name: document.getElementById('case-new-agent').value.trim() || null,
-    assign_to_self: document.getElementById('case-new-assign-self').checked,
+    assignee: document.getElementById('case-new-assignee').value || null,
   };
   try{
     var res = await fetch('/api/cases/', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -1354,8 +1357,8 @@ async function createCase(){
 }
 
 var CASE_ASSIGNEE_OPTIONS = null;
-async function ensureAssigneeOptionsLoaded(){
-  var sel = document.getElementById('case-detail-assignee');
+async function ensureAssigneeOptionsLoaded(selectId){
+  var sel = document.getElementById(selectId || 'case-detail-assignee');
   if(!sel) return;
   if(CASE_ASSIGNEE_OPTIONS){
     sel.innerHTML = CASE_ASSIGNEE_OPTIONS;
